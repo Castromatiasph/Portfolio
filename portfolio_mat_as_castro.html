@@ -1,0 +1,1153 @@
+<!DOCTYPE html>
+<html lang="es" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Matías Castro | Fotógrafo, Filmmaker & Community Manager</title>
+
+  <!-- Google Fonts: Playfair Display & Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,900;1,400&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            serif: ['"Playfair Display"', 'serif'],
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          },
+          colors: {
+            filmDark: '#08080a',
+            filmCard: '#111216',
+            filmBorder: '#23252e',
+            amberGlow: '#e5a93b',
+            cyanGlow: '#38bdf8',
+          },
+          animation: {
+            'pulse-slow': 'pulse 6s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            'float': 'float 8s ease-in-out infinite',
+          },
+          keyframes: {
+            float: {
+              '0%, 100%': { transform: 'translateY(0px) scale(1)' },
+              '50%': { transform: 'translateY(-15px) scale(1.02)' },
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    .film-grain {
+      background-image: radial-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 0);
+      background-size: 24px 24px;
+    }
+    .glow-amber {
+      box-shadow: 0 0 45px -10px rgba(229, 169, 59, 0.22);
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #08080a;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #272a33;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #e5a93b;
+    }
+  </style>
+</head>
+
+<body class="bg-filmDark text-gray-200 font-sans antialiased film-grain selection:bg-amber-500 selection:text-black min-h-screen relative overflow-x-hidden">
+
+  <!-- Ambient Cinematic Background Glows -->
+  <div class="fixed inset-0 pointer-events-none z-0 overflow-hidden">
+    <div class="absolute -top-32 left-1/4 w-[500px] h-[500px] bg-amberGlow/10 rounded-full blur-[140px] animate-pulse-slow"></div>
+    <div class="absolute top-1/2 -right-32 w-[600px] h-[600px] bg-cyanGlow/5 rounded-full blur-[160px] animate-float"></div>
+    <div class="absolute -bottom-40 left-10 w-[450px] h-[450px] bg-amberGlow/5 rounded-full blur-[150px]"></div>
+  </div>
+
+  <!-- Top Navigation Header -->
+  <header class="fixed top-0 left-0 w-full z-40 bg-filmDark/85 backdrop-blur-md border-b border-filmBorder/60 transition-all duration-300">
+    <div class="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
+      
+      <!-- Brand Logo -->
+      <a href="#" class="group flex items-center gap-2">
+        <span class="w-2.5 h-2.5 rounded-full bg-amberGlow group-hover:scale-125 transition-transform duration-300"></span>
+        <div class="flex flex-col">
+          <span class="font-serif text-xl tracking-wider font-bold text-white uppercase group-hover:text-amberGlow transition-colors">Matías Castro</span>
+          <span class="text-[10px] tracking-widest uppercase text-gray-400 font-mono">Fotógrafo & Filmmaker</span>
+        </div>
+      </a>
+
+      <!-- Desktop Links -->
+      <nav class="hidden md:flex items-center gap-7 text-xs uppercase tracking-widest font-semibold text-gray-300">
+        <a href="#proyectos" class="hover:text-amberGlow transition-colors">Proyectos</a>
+        <a href="#community-manager" class="hover:text-amberGlow transition-colors text-amberGlow/90 flex items-center gap-1.5">
+          <i data-lucide="share-2" class="w-3.5 h-3.5"></i>
+          <span>Social Media</span>
+        </a>
+        <a href="#reel" class="hover:text-amberGlow transition-colors">Showreel</a>
+        <a href="#bio" class="hover:text-amberGlow transition-colors">Sobre Mí</a>
+        <a href="#equipo" class="hover:text-amberGlow transition-colors">Equipamiento</a>
+        <a href="#contacto" class="px-5 py-2.5 rounded-full bg-white/5 border border-filmBorder hover:border-amberGlow/80 hover:bg-amberGlow hover:text-black transition-all duration-300">
+          Contacto
+        </a>
+      </nav>
+
+      <!-- Mobile Menu Toggle Button -->
+      <button id="mobileMenuBtn" class="md:hidden text-gray-300 hover:text-white p-2" aria-label="Abrir Menú">
+        <i data-lucide="menu" class="w-6 h-6"></i>
+      </button>
+    </div>
+
+    <!-- Mobile Dropdown Navigation -->
+    <div id="mobileMenu" class="hidden md:hidden bg-filmCard border-b border-filmBorder px-6 py-6 transition-all">
+      <div class="flex flex-col gap-4 text-sm font-semibold tracking-wider uppercase">
+        <a href="#proyectos" class="mobile-nav-link text-gray-300 hover:text-amberGlow py-1">Proyectos</a>
+        <a href="#community-manager" class="mobile-nav-link text-amberGlow py-1 flex items-center gap-2">
+          <i data-lucide="share-2" class="w-4 h-4"></i> Social Media & CM
+        </a>
+        <a href="#reel" class="mobile-nav-link text-gray-300 hover:text-amberGlow py-1">Showreel</a>
+        <a href="#bio" class="mobile-nav-link text-gray-300 hover:text-amberGlow py-1">Sobre Mí</a>
+        <a href="#equipo" class="mobile-nav-link text-gray-300 hover:text-amberGlow py-1">Equipamiento</a>
+        <a href="#contacto" class="mobile-nav-link text-amberGlow py-1">Contacto</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="relative z-10 pt-20">
+
+    <!-- Hero Section -->
+    <section class="min-h-[88vh] flex items-center justify-center px-6 relative">
+      <div class="max-w-5xl mx-auto text-center py-16">
+        
+        <!-- Label Badge -->
+        <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/5 border border-filmBorder text-xs uppercase tracking-widest text-amberGlow/90 mb-8 backdrop-blur-md">
+          <span class="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+          <span>Disponible para Proyectos</span>
+        </div>
+
+        <!-- Main Title -->
+        <h1 class="text-4xl sm:text-6xl md:text-8xl font-serif font-black tracking-tight text-white leading-[1.08] mb-6">
+          MATÍAS <span class="text-transparent bg-clip-text bg-gradient-to-r from-white via-gray-200 to-amberGlow/80 italic font-normal">CASTRO</span>
+        </h1>
+
+        <!-- Subtitle & Hook -->
+        <p class="text-lg sm:text-xl md:text-2xl text-amberGlow/95 font-serif italic mb-6">
+          Diseñador Audiovisual
+        </p>
+        
+        <p class="max-w-2xl mx-auto text-gray-400 text-sm sm:text-base leading-relaxed mb-10 font-light">
+          Creación integral de contenido visual: dirección fotográfica, realización audiovisual y gestión de comunidades digitales con estrategia, copys y piezas gráficas de alto impacto.
+        </p>
+
+        <!-- CTA Buttons -->
+        <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+          <a href="#proyectos" class="w-full sm:w-auto px-8 py-4 rounded-full bg-amberGlow text-black font-semibold text-xs uppercase tracking-widest hover:bg-amber-400 hover:scale-105 transition-all duration-300 flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20">
+            <span>Ver Trabajos</span>
+            <i data-lucide="arrow-down-right" class="w-4 h-4"></i>
+          </a>
+          
+          <a href="#community-manager" class="w-full sm:w-auto px-8 py-4 rounded-full bg-white/5 border border-filmBorder text-white font-semibold text-xs uppercase tracking-widest hover:bg-white/10 hover:border-amberGlow/60 transition-all duration-300 flex items-center justify-center gap-2">
+            <i data-lucide="instagram" class="w-4 h-4 text-pink-400"></i>
+            <span>Ver Gestión @gebahockeypatin</span>
+          </a>
+        </div>
+
+        <!-- Quick Stats Bar -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-16 pt-8 border-t border-filmBorder/50 max-w-4xl mx-auto text-left">
+          <div class="p-4 rounded-xl bg-filmCard/50 border border-filmBorder/40">
+            <div class="text-2xl sm:text-3xl font-serif text-white font-bold">8+</div>
+            <div class="text-xs uppercase text-gray-500 tracking-wider mt-1">Años en Realización</div>
+          </div>
+          <div class="p-4 rounded-xl bg-filmCard/50 border border-filmBorder/40">
+            <div class="text-2xl sm:text-3xl font-serif text-amberGlow font-bold">45+</div>
+            <div class="text-xs uppercase text-gray-500 tracking-wider mt-1">Producciones & Obras</div>
+          </div>
+          <div class="p-4 rounded-xl bg-filmCard/50 border border-filmBorder/40">
+            <div class="text-2xl sm:text-3xl font-serif text-white font-bold">Sony 4K</div>
+            <div class="text-xs uppercase text-gray-500 tracking-wider mt-1">Cine & Fotografía</div>
+          </div>
+          <div class="p-4 rounded-xl bg-filmCard/50 border border-filmBorder/40">
+            <div class="text-2xl sm:text-3xl font-serif text-cyanGlow font-bold">CM Integral</div>
+            <div class="text-xs uppercase text-gray-500 tracking-wider mt-1">Diseño + Copys + Reels</div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <section id="proyectos" class="py-24 px-6 border-t border-filmBorder/60 relative">
+      <div class="max-w-7xl mx-auto">
+        
+        <div class="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
+          <div>
+            <span class="text-xs uppercase tracking-widest text-amberGlow font-mono">// PORTAFOLIO SELECCIONADO</span>
+            <h2 class="text-3xl sm:text-5xl font-serif font-bold text-white mt-2">Obras & Proyectos</h2>
+          </div>
+          <p class="text-gray-400 text-sm max-w-md">
+            Piezas de cine de ficción, spots comerciales, coberturas deportivas y dirección visual.
+          </p>
+        </div>
+
+        <!-- Filter Buttons -->
+        <div class="flex items-center gap-2 overflow-x-auto pb-4 mb-10" id="filterTabs">
+          <button data-filter="all" class="filter-btn active px-5 py-2.5 rounded-full text-xs font-semibold tracking-wider uppercase border border-amberGlow bg-amberGlow text-black transition-all whitespace-nowrap">
+            Todos (6)
+          </button>
+          <button data-filter="audiovisual" class="filter-btn px-5 py-2.5 rounded-full text-xs font-semibold tracking-wider uppercase border border-filmBorder bg-filmCard text-gray-400 hover:text-white hover:border-gray-600 transition-all whitespace-nowrap">
+            Audiovisual & Comercial
+          </button>
+          <button data-filter="cine" class="filter-btn px-5 py-2.5 rounded-full text-xs font-semibold tracking-wider uppercase border border-filmBorder bg-filmCard text-gray-400 hover:text-white hover:border-gray-600 transition-all whitespace-nowrap">
+            Dirección de Arte & Cine
+          </button>
+          <button data-filter="documental" class="filter-btn px-5 py-2.5 rounded-full text-xs font-semibold tracking-wider uppercase border border-filmBorder bg-filmCard text-gray-400 hover:text-white hover:border-gray-600 transition-all whitespace-nowrap">
+            Deportes & Documental
+          </button>
+        </div>
+
+        <!-- Projects Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8" id="projectsGrid">
+
+          <!-- Project Card 1: A oscuras -->
+          <div class="project-card group cursor-pointer bg-filmCard border border-filmBorder rounded-2xl overflow-hidden hover:border-amberGlow/60 transition-all duration-500 flex flex-col"
+               data-category="cine"
+               onclick="openProjectModal(0)">
+            <div class="relative aspect-video overflow-hidden bg-zinc-900">
+              <img src="https://images.unsplash.com/photo-1485846234645-a62644f84728?auto=format&fit=crop&w=1200&q=80" 
+                   alt="A oscuras - Cortometraje" 
+                   class="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700 brightness-90 group-hover:brightness-100"
+                   loading="lazy">
+              <div class="absolute inset-0 bg-gradient-to-t from-filmCard via-transparent to-transparent"></div>
+              <span class="absolute top-4 left-4 px-3 py-1 bg-black/70 backdrop-blur-md rounded-full text-[10px] tracking-wider uppercase text-amberGlow font-mono border border-white/10">
+                Cortometraje
+              </span>
+              <div class="absolute bottom-4 right-4 w-10 h-10 rounded-full bg-amberGlow text-black flex items-center justify-center opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all duration-300">
+                <i data-lucide="arrow-up-right" class="w-5 h-5"></i>
+              </div>
+            </div>
+            <div class="p-6 flex-1 flex flex-col justify-between">
+              <div>
+                <span class="text-xs text-gray-400 tracking-wider uppercase">Ficción & Colorimetría</span>
+                <h3 class="font-serif text-2xl font-bold text-white mt-1 group-hover:text-amberGlow transition-colors">A oscuras</h3>
+                <p class="text-gray-400 text-xs mt-2.5 line-clamp-2 leading-relaxed">
+                  Pieza cinematográfica centrada en contrastes lumínicos extremos, atmósfera claustrofóbica y diseño de arte expresivo en locación cerrada.
+                </p>
+              </div>
+              <div class="mt-6 pt-4 border-t border-filmBorder/70 flex items-center justify-between text-xs text-gray-500 font-mono">
+                <span>Dirección de Arte & Color</span>
+                <span>2025</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Project Card 2: Identidad & Barrio -->
+          <div class="project-card group cursor-pointer bg-filmCard border border-filmBorder rounded-2xl overflow-hidden hover:border-amberGlow/60 transition-all duration-500 flex flex-col"
+               data-category="documental"
+               onclick="openProjectModal(1)">
+            <div class="relative aspect-video overflow-hidden bg-zinc-900">
+              <img src="https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1200&q=80" 
+                   alt="Identidad & Barrio" 
+                   class="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700 brightness-90 group-hover:brightness-100"
+                   loading="lazy">
+              <div class="absolute inset-0 bg-gradient-to-t from-filmCard via-transparent to-transparent"></div>
+              <span class="absolute top-4 left-4 px-3 py-1 bg-black/70 backdrop-blur-md rounded-full text-[10px] tracking-wider uppercase text-cyanGlow font-mono border border-white/10">
+                Serie Documental
+              </span>
+              <div class="absolute bottom-4 right-4 w-10 h-10 rounded-full bg-amberGlow text-black flex items-center justify-center opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all duration-300">
+                <i data-lucide="arrow-up-right" class="w-5 h-5"></i>
+              </div>
+            </div>
+            <div class="p-6 flex-1 flex flex-col justify-between">
+              <div>
+                <span class="text-xs text-gray-400 tracking-wider uppercase">Crónica Urbana</span>
+                <h3 class="font-serif text-2xl font-bold text-white mt-1 group-hover:text-amberGlow transition-colors">Identidad & Barrio</h3>
+                <p class="text-gray-400 text-xs mt-2.5 line-clamp-2 leading-relaxed">
+                  Registro documental con foco en personajes locales, texturas urbanas, montaje dinámico y diseño sonoro envolvente.
+                </p>
+              </div>
+              <div class="mt-6 pt-4 border-t border-filmBorder/70 flex items-center justify-between text-xs text-gray-500 font-mono">
+                <span>Realización & Montaje</span>
+                <span>2025</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Project Card 3: Dynamic Speed & Movement -->
+          <div class="project-card group cursor-pointer bg-filmCard border border-filmBorder rounded-2xl overflow-hidden hover:border-amberGlow/60 transition-all duration-500 flex flex-col"
+               data-category="documental"
+               onclick="openProjectModal(2)">
+            <div class="relative aspect-video overflow-hidden bg-zinc-900">
+              <img src="https://images.unsplash.com/photo-1517649763962-0c623266ddc0?auto=format&fit=crop&w=1200&q=80" 
+                   alt="Dynamic Speed & Movement" 
+                   class="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700 brightness-90 group-hover:brightness-100"
+                   loading="lazy">
+              <div class="absolute inset-0 bg-gradient-to-t from-filmCard via-transparent to-transparent"></div>
+              <span class="absolute top-4 left-4 px-3 py-1 bg-black/70 backdrop-blur-md rounded-full text-[10px] tracking-wider uppercase text-amberGlow font-mono border border-white/10">
+                Cobertura Deportiva
+              </span>
+              <div class="absolute bottom-4 right-4 w-10 h-10 rounded-full bg-amberGlow text-black flex items-center justify-center opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all duration-300">
+                <i data-lucide="arrow-up-right" class="w-5 h-5"></i>
+              </div>
+            </div>
+            <div class="p-6 flex-1 flex flex-col justify-between">
+              <div>
+                <span class="text-xs text-gray-400 tracking-wider uppercase">Acción & Alta Velocidad</span>
+                <h3 class="font-serif text-2xl font-bold text-white mt-1 group-hover:text-amberGlow transition-colors">Dynamic Speed & Movement</h3>
+                <p class="text-gray-400 text-xs mt-2.5 line-clamp-2 leading-relaxed">
+                  Pieza de alto octanaje con estabilización giroscópica, tomas en alta tasa de cuadros (120fps) y etalonaje enérgico.
+                </p>
+              </div>
+              <div class="mt-6 pt-4 border-t border-filmBorder/70 flex items-center justify-between text-xs text-gray-500 font-mono">
+                <span>Cámara & Color Grading</span>
+                <span>2024</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Project Card 4: Ajec | Cintas Autoadhesivas -->
+          <div class="project-card group cursor-pointer bg-filmCard border border-filmBorder rounded-2xl overflow-hidden hover:border-amberGlow/60 transition-all duration-500 flex flex-col"
+               data-category="audiovisual"
+               onclick="openProjectModal(3)">
+            <div class="relative aspect-video overflow-hidden bg-zinc-900">
+              <img src="https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1200&q=80" 
+                   alt="Ajec | Cintas Autoadhesivas" 
+                   class="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700 brightness-90 group-hover:brightness-100"
+                   loading="lazy">
+              <div class="absolute inset-0 bg-gradient-to-t from-filmCard via-transparent to-transparent"></div>
+              <span class="absolute top-4 left-4 px-3 py-1 bg-black/70 backdrop-blur-md rounded-full text-[10px] tracking-wider uppercase text-cyanGlow font-mono border border-white/10">
+                Spot / Comercial
+              </span>
+              <div class="absolute bottom-4 right-4 w-10 h-10 rounded-full bg-amberGlow text-black flex items-center justify-center opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all duration-300">
+                <i data-lucide="arrow-up-right" class="w-5 h-5"></i>
+              </div>
+            </div>
+            <div class="p-6 flex-1 flex flex-col justify-between">
+              <div>
+                <span class="text-xs text-gray-400 tracking-wider uppercase">Campaña de Producto</span>
+                <h3 class="font-serif text-2xl font-bold text-white mt-1 group-hover:text-amberGlow transition-colors">Ajec | Cintas Autoadhesivas</h3>
+                <p class="text-gray-400 text-xs mt-2.5 line-clamp-2 leading-relaxed">
+                  Pieza publicitaria institucional y de producto, combinando rodaje industrial, tomas de detalle en macro y edición orientada al impacto de marca.
+                </p>
+              </div>
+              <div class="mt-6 pt-4 border-t border-filmBorder/70 flex items-center justify-between text-xs text-gray-500 font-mono">
+                <span>Guion & Edición Integral</span>
+                <span>2024</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Project Card 5: Atmósferas & Luz -->
+          <div class="project-card group cursor-pointer bg-filmCard border border-filmBorder rounded-2xl overflow-hidden hover:border-amberGlow/60 transition-all duration-500 flex flex-col"
+               data-category="cine"
+               onclick="openProjectModal(4)">
+            <div class="relative aspect-video overflow-hidden bg-zinc-900">
+              <img src="https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=1200&q=80" 
+                   alt="Atmósferas & Luz" 
+                   class="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700 brightness-90 group-hover:brightness-100"
+                   loading="lazy">
+              <div class="absolute inset-0 bg-gradient-to-t from-filmCard via-transparent to-transparent"></div>
+              <span class="absolute top-4 left-4 px-3 py-1 bg-black/70 backdrop-blur-md rounded-full text-[10px] tracking-wider uppercase text-amberGlow font-mono border border-white/10">
+                Puesta en Escena
+              </span>
+              <div class="absolute bottom-4 right-4 w-10 h-10 rounded-full bg-amberGlow text-black flex items-center justify-center opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all duration-300">
+                <i data-lucide="arrow-up-right" class="w-5 h-5"></i>
+              </div>
+            </div>
+            <div class="p-6 flex-1 flex flex-col justify-between">
+              <div>
+                <span class="text-xs text-gray-400 tracking-wider uppercase">Exploración Visual</span>
+                <h3 class="font-serif text-2xl font-bold text-white mt-1 group-hover:text-amberGlow transition-colors">Atmósferas & Luz</h3>
+                <p class="text-gray-400 text-xs mt-2.5 line-clamp-2 leading-relaxed">
+                  Estudio de volumetría con niebla escénica, óptica con carácter y paletas complementarias cálido-frío para proyectos conceptuales.
+                </p>
+              </div>
+              <div class="mt-6 pt-4 border-t border-filmBorder/70 flex items-center justify-between text-xs text-gray-500 font-mono">
+                <span>Dirección de Fotografía</span>
+                <span>2024</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Project Card 6: Motion Graphics & Brand Pack -->
+          <div class="project-card group cursor-pointer bg-filmCard border border-filmBorder rounded-2xl overflow-hidden hover:border-amberGlow/60 transition-all duration-500 flex flex-col"
+               data-category="audiovisual"
+               onclick="openProjectModal(5)">
+            <div class="relative aspect-video overflow-hidden bg-zinc-900">
+              <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80" 
+                   alt="Motion Graphics & Brand Pack" 
+                   class="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-700 brightness-90 group-hover:brightness-100"
+                   loading="lazy">
+              <div class="absolute inset-0 bg-gradient-to-t from-filmCard via-transparent to-transparent"></div>
+              <span class="absolute top-4 left-4 px-3 py-1 bg-black/70 backdrop-blur-md rounded-full text-[10px] tracking-wider uppercase text-cyanGlow font-mono border border-white/10">
+                Motion Graphics
+              </span>
+              <div class="absolute bottom-4 right-4 w-10 h-10 rounded-full bg-amberGlow text-black flex items-center justify-center opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all duration-300">
+                <i data-lucide="arrow-up-right" class="w-5 h-5"></i>
+              </div>
+            </div>
+            <div class="p-6 flex-1 flex flex-col justify-between">
+              <div>
+                <span class="text-xs text-gray-400 tracking-wider uppercase">Identidad & Gráfica en Movimiento</span>
+                <h3 class="font-serif text-2xl font-bold text-white mt-1 group-hover:text-amberGlow transition-colors">Motion Graphics & Brand Pack</h3>
+                <p class="text-gray-400 text-xs mt-2.5 line-clamp-2 leading-relaxed">
+                  Desarrollo de intros animadas, lower thirds dinámicos, zócalos deportivos y transiciones de marca para medios audiovisuales.
+                </p>
+              </div>
+              <div class="mt-6 pt-4 border-t border-filmBorder/70 flex items-center justify-between text-xs text-gray-500 font-mono">
+                <span>Animación & Diseño</span>
+                <span>2024</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <section id="community-manager" class="py-24 px-6 border-t border-filmBorder/60 bg-gradient-to-b from-filmDark via-filmCard/40 to-filmDark relative overflow-hidden">
+      <div class="max-w-7xl mx-auto">
+        
+        <!-- Header badge -->
+        <div class="flex flex-col md:flex-row md:items-end justify-between mb-16 gap-6">
+          <div>
+            <div class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-pink-500/10 border border-pink-500/30 text-pink-400 text-xs font-mono uppercase tracking-wider mb-3">
+              <i data-lucide="instagram" class="w-3.5 h-3.5"></i>
+              <span>Social Media & Community Management</span>
+            </div>
+            <h2 class="text-3xl sm:text-5xl font-serif font-bold text-white">Gestión Integral de Redes</h2>
+            <p class="text-gray-400 text-sm sm:text-base max-w-xl mt-3">
+              No solo genero piezas visuales aisladas: diseño identidades completas, escribo copys persuasivos, edito reels dinámicos y planifico la comunicación deportiva de punta a punta.
+            </p>
+          </div>
+
+          <a href="https://instagram.com/gebahockeypatin" target="_blank" rel="noopener noreferrer" 
+             class="inline-flex items-center gap-2 px-6 py-3.5 rounded-full bg-gradient-to-r from-purple-600 via-pink-600 to-amber-500 text-white font-semibold text-xs uppercase tracking-widest hover:opacity-90 hover:scale-105 transition-all duration-300 shadow-lg shadow-pink-500/20">
+            <i data-lucide="external-link" class="w-4 h-4"></i>
+            <span>Ver @gebahockeypatin en Instagram</span>
+          </a>
+        </div>
+
+        <!-- Featured Case Study Card: GEBA Hockey Patín -->
+        <div class="rounded-3xl bg-filmCard border border-filmBorder/80 p-8 sm:p-12 glow-amber relative overflow-hidden">
+          
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
+            
+            <!-- Left Column: Case Details -->
+            <div class="lg:col-span-7 space-y-6">
+              
+              <div class="flex items-center gap-4">
+                <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr from-cyan-600 to-blue-700 p-0.5 shadow-xl flex items-center justify-center">
+                  <div class="w-full h-full bg-filmDark rounded-[14px] flex items-center justify-center">
+                    <span class="font-serif font-black text-xl text-white tracking-tighter">GEBA</span>
+                  </div>
+                </div>
+                <div>
+                  <h3 class="text-2xl sm:text-3xl font-serif font-bold text-white">@gebahockeypatin</h3>
+                  <p class="text-xs text-amberGlow font-mono uppercase tracking-wider">Club Gimnasia y Esgrima de Buenos Aires</p>
+                </div>
+              </div>
+
+              <p class="text-gray-300 text-sm sm:text-base leading-relaxed">
+                A cargo de la dirección visual y estratégica de la cuenta oficial de Hockey sobre Patines de GEBA. Desde la preproducción de las placas de partido hasta la cobertura en pista, la edición vertical de jugadas decisivas y la redacción de cada publicación con el tono institucional y pasional que exige la disciplina.
+              </p>
+
+              <!-- CM Tasks Breakdown -->
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                
+                <div class="p-4 rounded-xl bg-black/40 border border-filmBorder flex items-start gap-3.5">
+                  <div class="w-9 h-9 rounded-lg bg-amberGlow/10 border border-amberGlow/30 text-amberGlow flex items-center justify-center shrink-0 mt-0.5">
+                    <i data-lucide="layout" class="w-4 h-4"></i>
+                  </div>
+                  <div>
+                    <h4 class="text-xs font-bold text-white uppercase tracking-wider">Diseño Gráfico de Feeds</h4>
+                    <p class="text-xs text-gray-400 mt-1">Flyers de Matchday, fixture mensual, tablas de posiciones y anuncios oficiales con estilo visual propio.</p>
+                  </div>
+                </div>
+
+                <div class="p-4 rounded-xl bg-black/40 border border-filmBorder flex items-start gap-3.5">
+                  <div class="w-9 h-9 rounded-lg bg-cyanGlow/10 border border-cyanGlow/30 text-cyanGlow flex items-center justify-center shrink-0 mt-0.5">
+                    <i data-lucide="pen-tool" class="w-4 h-4"></i>
+                  </div>
+                  <div>
+                    <h4 class="text-xs font-bold text-white uppercase tracking-wider">Copywriting & Tono</h4>
+                    <p class="text-xs text-gray-400 mt-1">Textos que conectan con la masa societaria y la hinchada, llamados a la acción, hashtags precisos e información clara.</p>
+                  </div>
+                </div>
+
+                <div class="p-4 rounded-xl bg-black/40 border border-filmBorder flex items-start gap-3.5">
+                  <div class="w-9 h-9 rounded-lg bg-purple-500/10 border border-purple-500/30 text-purple-400 flex items-center justify-center shrink-0 mt-0.5">
+                    <i data-lucide="clapperboard" class="w-4 h-4"></i>
+                  </div>
+                  <div>
+                    <h4 class="text-xs font-bold text-white uppercase tracking-wider">Reels, Video & Historias</h4>
+                    <p class="text-xs text-gray-400 mt-1">Highlights de goles, festejos en vestuario y jugadas destacadas grabadas y editadas a ritmo dinámico para formato 9:16.</p>
+                  </div>
+                </div>
+
+                <div class="p-4 rounded-xl bg-black/40 border border-filmBorder flex items-start gap-3.5">
+                  <div class="w-9 h-9 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
+                    <i data-lucide="calendar" class="w-4 h-4"></i>
+                  </div>
+                  <div>
+                    <h4 class="text-xs font-bold text-white uppercase tracking-wider">Estrategia & Calendario</h4>
+                    <p class="text-xs text-gray-400 mt-1">Planificación editorial de la semana previa, cobertura en vivo de la fecha y resumen post-partido con métricas.</p>
+                  </div>
+                </div>
+
+              </div>
+
+            </div>
+
+            <!-- Right Column: Instagram Post Preview Mockup -->
+            <div class="lg:col-span-5 flex justify-center">
+              <div class="w-full max-w-sm rounded-3xl bg-[#0d0e12] border border-filmBorder p-4 shadow-2xl space-y-3 font-sans">
+                
+                <!-- Instagram Card Header -->
+                <div class="flex items-center justify-between pb-2 border-b border-filmBorder/50">
+                  <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-full bg-gradient-to-tr from-amber-400 to-pink-500 p-0.5">
+                      <div class="w-full h-full rounded-full bg-black flex items-center justify-center text-[10px] font-bold text-white">
+                        GEBA
+                      </div>
+                    </div>
+                    <div>
+                      <div class="flex items-center gap-1">
+                        <span class="text-xs font-bold text-white">gebahockeypatin</span>
+                        <span class="text-blue-400 text-[10px]">●</span>
+                      </div>
+                      <span class="text-[10px] text-gray-500">Sede San Martín • Buenos Aires</span>
+                    </div>
+                  </div>
+                  <i data-lucide="more-horizontal" class="w-4 h-4 text-gray-400"></i>
+                </div>
+
+                <!-- Instagram Post Image (Matchday Simulation) -->
+                <div class="relative aspect-square rounded-2xl overflow-hidden bg-zinc-900 border border-filmBorder/60 group">
+                  <img src="https://images.unsplash.com/photo-1517649763962-0c623266ddc0?auto=format&fit=crop&w=800&q=80" 
+                       alt="GEBA Hockey Patín Matchday" 
+                       class="w-full h-full object-cover brightness-75 group-hover:scale-105 transition-transform duration-700">
+                  
+                  <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent flex flex-col justify-between p-5">
+                    <div class="flex justify-between items-start">
+                      <span class="px-2.5 py-1 rounded bg-blue-600/90 text-white text-[9px] font-bold uppercase tracking-wider">
+                        FECHA OFICIAL
+                      </span>
+                      <span class="text-[10px] font-mono text-gray-300 bg-black/60 px-2 py-0.5 rounded">
+                        PRIMERA DIVISIÓN
+                      </span>
+                    </div>
+
+                    <div>
+                      <span class="text-amberGlow text-xs font-bold uppercase tracking-widest font-mono">MATCHDAY • HOY JUGAMOS</span>
+                      <h4 class="text-xl font-serif font-black text-white leading-tight mt-1">GEBA vs. RIVAL</h4>
+                      <p class="text-[11px] text-gray-300 mt-1 flex items-center gap-2 font-mono">
+                        <span>🕒 20:30 HS</span>
+                        <span>📍 PISTA PRINCIPAL GEBA</span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Instagram Interaction Bar -->
+                <div class="flex items-center justify-between text-gray-300 pt-1">
+                  <div class="flex items-center gap-3">
+                    <i data-lucide="heart" class="w-5 h-5 text-red-500 fill-red-500"></i>
+                    <i data-lucide="message-circle" class="w-5 h-5"></i>
+                    <i data-lucide="send" class="w-5 h-5"></i>
+                  </div>
+                  <i data-lucide="bookmark" class="w-5 h-5"></i>
+                </div>
+
+                <!-- Instagram Copy Simulation -->
+                <div class="text-[11px] text-gray-300 leading-relaxed border-t border-filmBorder/50 pt-2 space-y-1">
+                  <p>
+                    <span class="font-bold text-white">gebahockeypatin</span> ¡Hoy se deja todo en la pista! 🏑⚡ Recibimos la fecha del torneo con el equipo listo para buscar los tres puntos en casa.
+                  </p>
+                  <p class="text-gray-400">
+                    Sumate a alentar desde las tribunas o seguí el minuto a minuto en nuestras historias. ¡Vamos Mens Sana! 💙🤍
+                  </p>
+                  <p class="text-[10px] text-gray-500 pt-1 font-mono">
+                    #GEBA #HockeySobrePatines #MensSana #Matchday #Metropolitano
+                  </p>
+                </div>
+
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
+    <section id="reel" class="py-24 px-6 bg-black/40 border-t border-filmBorder/60 relative overflow-hidden">
+      <div class="max-w-6xl mx-auto text-center">
+        
+        <span class="text-xs uppercase tracking-widest text-amberGlow font-mono">// EXPERIENCIA AUDIOVISUAL</span>
+        <h2 class="text-3xl sm:text-5xl font-serif font-bold text-white mt-2 mb-4">Cinematic Showreel</h2>
+        <p class="text-gray-400 text-sm max-w-xl mx-auto mb-12">
+          Un condensado de ritmo, narrativa visual, etalonaje y cámara en mano. Proyectos comerciales, de ficción y eventos.
+        </p>
+
+        <!-- Reel Frame Mockup -->
+        <div class="relative group rounded-3xl overflow-hidden border border-filmBorder/80 bg-filmCard glow-amber">
+          <div class="aspect-video relative w-full overflow-hidden flex items-center justify-center">
+            <img src="https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?auto=format&fit=crop&w=1920&q=80" 
+                 alt="Showreel Preview" 
+                 class="w-full h-full object-cover brightness-50 group-hover:scale-105 transition-transform duration-700">
+            
+            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"></div>
+
+            <!-- Big Play Trigger -->
+            <button onclick="openVideoModal('https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?autoplay=1', 'Reel Principal - Matías Castro', 'Recorrido por los mejores momentos de dirección, montaje y cinematografía')"
+                    class="relative z-10 w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-amberGlow text-black flex items-center justify-center shadow-2xl transform group-hover:scale-110 transition-all duration-300">
+              <i data-lucide="play" class="w-8 h-8 sm:w-10 sm:h-10 fill-black translate-x-0.5"></i>
+            </button>
+
+            <!-- Video Overlay Info -->
+            <div class="absolute bottom-6 left-6 right-6 flex items-center justify-between text-left pointer-events-none">
+              <div>
+                <span class="text-xs font-mono uppercase tracking-wider text-amberGlow">4K Ultra HD • Sony & Drone DJI</span>
+                <p class="text-lg font-serif text-white font-bold hidden sm:block">Edición de Ritmo & Selección de Tomas</p>
+              </div>
+              <div class="flex items-center gap-2 px-3 py-1 rounded-full bg-black/60 border border-white/10 text-xs font-mono text-gray-300">
+                <span class="w-2 h-2 rounded-full bg-green-500"></span>
+                <span>02:15 min</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <section id="bio" class="py-24 px-6 border-t border-filmBorder/60 relative">
+      <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-16 items-start">
+        
+        <!-- Left: Bio Story -->
+        <div class="lg:col-span-6 space-y-6">
+          <span class="text-xs uppercase tracking-widest text-amberGlow font-mono">// DETRÁS DE CÁMARA</span>
+          <h2 class="text-3xl sm:text-5xl font-serif font-bold text-white">Narrar a través del lente, el color y la comunidad.</h2>
+          
+          <p class="text-gray-300 text-sm sm:text-base leading-relaxed">
+            Soy Matías Castro, diseñador audiovisual, fotógrafo y realizador. Mi propuesta integra la mirada cinematográfica en cada fotograma con la agilidad comunicacional que hoy requieren las marcas, los clubes y los proyectos independientes en redes sociales.
+          </p>
+
+          <p class="text-gray-400 text-sm sm:text-base leading-relaxed">
+            Desde rodajes comerciales y ficción hasta la gestión integral de comunidades digitales como <strong class="text-white">@gebahockeypatin</strong>, desarrollo conceptos que combinan dirección de arte, técnica fotográfica, redacción creativa y edición dinámica.
+          </p>
+
+          <div class="pt-6 border-t border-filmBorder grid grid-cols-2 gap-6">
+            <div>
+              <h4 class="text-white font-serif font-bold text-lg mb-1">Cine & Comercial</h4>
+              <p class="text-xs text-gray-400 leading-normal">Dirección estética, fotografía en locación y en estudio con iluminación dramática.</p>
+            </div>
+            <div>
+              <h4 class="text-white font-serif font-bold text-lg mb-1">Social Media & CM</h4>
+              <p class="text-xs text-gray-400 leading-normal">Estrategia, diseño gráfico para feeds, redacción de copys y reels deportivos.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Hardware & Equipment Section (Suite Creativa removed as requested) -->
+        <div class="lg:col-span-6 space-y-6" id="equipo">
+          
+          <div class="p-8 rounded-3xl bg-filmCard border border-filmBorder">
+            <div class="flex items-center gap-3 mb-6">
+              <i data-lucide="camera" class="w-5 h-5 text-amberGlow"></i>
+              <h3 class="text-xl font-serif font-bold text-white">Equipamiento Técnico de Rodaje</h3>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              
+              <!-- Item 1: Cámaras Sony -->
+              <div class="p-5 rounded-2xl bg-black/50 border border-filmBorder/80 hover:border-amberGlow/50 transition-colors">
+                <div class="w-8 h-8 rounded-lg bg-amberGlow/10 text-amberGlow flex items-center justify-center mb-3">
+                  <i data-lucide="video" class="w-4 h-4"></i>
+                </div>
+                <div class="text-sm font-bold text-white">Cámaras Sony Full-Frame 4K</div>
+                <div class="text-xs text-gray-400 mt-1.5 leading-relaxed">
+                  Sensores full-frame de alta sensibilidad, perfiles S-Cinetone y S-Log3 para máximo rango dinámico y nitidez en 4K.
+                </div>
+              </div>
+
+              <!-- Item 2: Drone DJI 4k -->
+              <div class="p-5 rounded-2xl bg-black/50 border border-filmBorder/80 hover:border-amberGlow/50 transition-colors">
+                <div class="w-8 h-8 rounded-lg bg-cyanGlow/10 text-cyanGlow flex items-center justify-center mb-3">
+                  <i data-lucide="navigation" class="w-4 h-4"></i>
+                </div>
+                <div class="text-sm font-bold text-white">Drone DJI 4k</div>
+                <div class="text-xs text-gray-400 mt-1.5 leading-relaxed">
+                  Tomas aéreas cinematográficas en 4K HDR, perfil D-Log M, planos cenitales y seguimiento dinámico en exteriores.
+                </div>
+              </div>
+
+              <!-- Item 3: Estabilización -->
+              <div class="p-5 rounded-2xl bg-black/50 border border-filmBorder/80 hover:border-amberGlow/50 transition-colors">
+                <div class="w-8 h-8 rounded-lg bg-purple-500/10 text-purple-400 flex items-center justify-center mb-3">
+                  <i data-lucide="move" class="w-4 h-4"></i>
+                </div>
+                <div class="text-sm font-bold text-white">Gimbal & Estabilización</div>
+                <div class="text-xs text-gray-400 mt-1.5 leading-relaxed">
+                  Planos secuencia fluidos, seguimiento en velocidad para partidos y tomas comerciales sin vibraciones.
+                </div>
+              </div>
+
+              <!-- Item 4: Iluminación & Audio -->
+              <div class="p-5 rounded-2xl bg-black/50 border border-filmBorder/80 hover:border-amberGlow/50 transition-colors">
+                <div class="w-8 h-8 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center mb-3">
+                  <i data-lucide="sun" class="w-4 h-4"></i>
+                </div>
+                <div class="text-sm font-bold text-white">Iluminación LED & Audio</div>
+                <div class="text-xs text-gray-400 mt-1.5 leading-relaxed">
+                  Luminarias LED bicolor de alto CRI con modificadores de luz suave y microfonía inalámbrica profesional.
+                </div>
+              </div>
+
+            </div>
+
+            <!-- Additional feature footnote -->
+            <div class="mt-6 pt-5 border-t border-filmBorder/60 flex items-center justify-between text-xs text-gray-400 font-mono">
+              <span class="flex items-center gap-1.5">
+                <span class="w-2 h-2 rounded-full bg-emerald-500"></span> Set listo para traslados y rodajes
+              </span>
+              <span>4K 10-bit / RAW Ready</span>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
+    <section id="contacto" class="py-24 px-6 border-t border-filmBorder/60 bg-gradient-to-b from-transparent to-filmCard/50 relative">
+      <div class="max-w-5xl mx-auto">
+        
+        <div class="text-center max-w-2xl mx-auto mb-16">
+          <span class="text-xs uppercase tracking-widest text-amberGlow font-mono">// HABLEMOS</span>
+          <h2 class="text-3xl sm:text-5xl font-serif font-bold text-white mt-2">¿Tenés una idea o proyecto en mente?</h2>
+          <p class="text-gray-400 text-sm mt-4">
+            Escribime para planificar el guion, el rodaje, la fotografía, la cobertura deportiva o la gestión completa de tus redes sociales.
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+          
+          <!-- Contact Info Column -->
+          <div class="lg:col-span-5 space-y-6">
+            <div class="p-6 rounded-2xl bg-filmCard border border-filmBorder">
+              <h4 class="font-serif text-lg font-bold text-white mb-2">Canal Directo</h4>
+              <p class="text-xs text-gray-400 mb-6">Respuesta directa en menos de 24 horas hábiles.</p>
+              
+              <div class="space-y-4 text-sm">
+                <a href="mailto:matias01castro@yahoo.com.ar" class="flex items-center gap-3 text-gray-300 hover:text-amberGlow transition-colors">
+                  <div class="w-10 h-10 rounded-xl bg-black/50 border border-filmBorder flex items-center justify-center text-amberGlow">
+                    <i data-lucide="mail" class="w-4 h-4"></i>
+                  </div>
+                  <span class="break-all font-mono text-xs sm:text-sm">matias01castro@yahoo.com.ar</span>
+                </a>
+
+                <div class="flex items-center gap-3 text-gray-300">
+                  <div class="w-10 h-10 rounded-xl bg-black/50 border border-filmBorder flex items-center justify-center text-cyanGlow">
+                    <i data-lucide="map-pin" class="w-4 h-4"></i>
+                  </div>
+                  <span class="text-xs sm:text-sm">Buenos Aires, Argentina (Disponible para viajes)</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Social Links: Personal IG and GEBA Hockey -->
+            <div class="p-6 rounded-2xl bg-filmCard border border-filmBorder">
+              <h4 class="font-serif text-base font-bold text-white mb-4">Perfiles & Cuentas en Gestión</h4>
+              <div class="space-y-3 text-xs">
+                
+                <a href="https://instagram.com/castromatiasph" target="_blank" rel="noopener noreferrer" 
+                   class="p-3.5 rounded-xl bg-black/40 border border-filmBorder hover:border-amberGlow text-gray-300 hover:text-white flex items-center justify-between transition-colors group">
+                  <div class="flex items-center gap-3">
+                    <i data-lucide="instagram" class="w-4 h-4 text-pink-400"></i>
+                    <div>
+                      <div class="font-semibold text-white">@castromatiasph</div>
+                      <div class="text-[11px] text-gray-400">Fotografía & Filmmaking personal</div>
+                    </div>
+                  </div>
+                  <i data-lucide="arrow-up-right" class="w-4 h-4 text-gray-500 group-hover:text-amberGlow transition-colors"></i>
+                </a>
+
+                <a href="https://instagram.com/gebahockeypatin" target="_blank" rel="noopener noreferrer" 
+                   class="p-3.5 rounded-xl bg-black/40 border border-filmBorder hover:border-amberGlow text-gray-300 hover:text-white flex items-center justify-between transition-colors group">
+                  <div class="flex items-center gap-3">
+                    <i data-lucide="instagram" class="w-4 h-4 text-cyan-400"></i>
+                    <div>
+                      <div class="font-semibold text-white">@gebahockeypatin</div>
+                      <div class="text-[11px] text-gray-400">Cuenta oficial en gestión (CM & Contenido)</div>
+                    </div>
+                  </div>
+                  <i data-lucide="arrow-up-right" class="w-4 h-4 text-gray-500 group-hover:text-amberGlow transition-colors"></i>
+                </a>
+
+              </div>
+            </div>
+          </div>
+
+          <!-- Contact Form Column -->
+          <div class="lg:col-span-7">
+            <form id="contactForm" onsubmit="handleContactSubmit(event)" class="p-8 rounded-3xl bg-filmCard border border-filmBorder space-y-6">
+              
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div>
+                  <label for="name" class="block text-xs uppercase tracking-wider text-gray-400 mb-2 font-medium">Nombre / Productora / Club</label>
+                  <input type="text" id="name" required placeholder="Tu nombre o entidad"
+                         class="w-full px-4 py-3 rounded-xl bg-black/50 border border-filmBorder text-white text-sm focus:outline-none focus:border-amberGlow transition-colors">
+                </div>
+                <div>
+                  <label for="email" class="block text-xs uppercase tracking-wider text-gray-400 mb-2 font-medium">Correo Electrónico</label>
+                  <input type="email" id="email" required placeholder="tu@email.com"
+                         class="w-full px-4 py-3 rounded-xl bg-black/50 border border-filmBorder text-white text-sm focus:outline-none focus:border-amberGlow transition-colors">
+                </div>
+              </div>
+
+              <div>
+                <label for="projectType" class="block text-xs uppercase tracking-wider text-gray-400 mb-2 font-medium">Servicio Solicitado</label>
+                <select id="projectType" class="w-full px-4 py-3 rounded-xl bg-black/50 border border-filmBorder text-gray-200 text-sm focus:outline-none focus:border-amberGlow transition-colors">
+                  <option value="Community Management & Redes">Community Management & Redes Sociales (Diseño, Copys, Reels)</option>
+                  <option value="Fotografía Profesional">Fotografía Profesional & Cobertura de Eventos / Deportes</option>
+                  <option value="Film & Video Comercial">Video Comercial / Publicidad / Spot Institucional</option>
+                  <option value="Ficción / Cortometraje">Ficción / Cortometraje / Dirección de Arte</option>
+                  <option value="Tomas Aéreas Drone DJI 4k">Tomas Aéreas con Drone DJI 4k</option>
+                </select>
+              </div>
+
+              <div>
+                <label for="message" class="block text-xs uppercase tracking-wider text-gray-400 mb-2 font-medium">Detalles de la Propuesta</label>
+                <textarea id="message" rows="4" required placeholder="Contame qué necesitás, fechas estimadas, tipo de cobertura o necesidades de tu marca..."
+                          class="w-full px-4 py-3 rounded-xl bg-black/50 border border-filmBorder text-white text-sm focus:outline-none focus:border-amberGlow transition-colors"></textarea>
+              </div>
+
+              <button type="submit" class="w-full py-4 rounded-xl bg-amberGlow text-black font-bold text-xs uppercase tracking-widest hover:bg-amber-400 transition-all flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20">
+                <span>Enviar Mensaje</span>
+                <i data-lucide="send" class="w-4 h-4"></i>
+              </button>
+
+              <!-- Feedback message container -->
+              <div id="formFeedback" class="hidden p-4 rounded-xl text-center text-xs font-medium"></div>
+
+            </form>
+          </div>
+
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="py-12 px-6 border-t border-filmBorder/60 bg-filmDark text-xs text-gray-500 text-center relative z-10">
+    <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div class="flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-amberGlow"></span>
+        <span class="font-serif font-bold text-white text-sm">MATÍAS CASTRO</span>
+        <span class="text-gray-600">|</span>
+        <span>Diseñador Audiovisual • Fotógrafo & Filmmaker • Community Manager</span>
+      </div>
+      <div>
+        © 2026 Matías Castro. matias01castro@yahoo.com.ar
+      </div>
+    </div>
+  </footer>
+
+  <!-- Project Detail Modal -->
+  <div id="projectModal" class="fixed inset-0 z-50 hidden bg-black/85 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+    <div class="relative w-full max-w-4xl bg-filmCard border border-filmBorder rounded-3xl overflow-hidden shadow-2xl my-8">
+      <button onclick="closeProjectModal()" class="absolute top-4 right-4 z-20 w-10 h-10 rounded-full bg-black/70 text-white hover:text-amberGlow flex items-center justify-center border border-white/10 transition-colors">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+      <div id="modalContent"></div>
+    </div>
+  </div>
+
+  <!-- Video Player Modal -->
+  <div id="videoModal" class="fixed inset-0 z-50 hidden bg-black/90 backdrop-blur-md flex items-center justify-center p-4 sm:p-6">
+    <div class="relative w-full max-w-4xl bg-filmCard border border-filmBorder rounded-3xl overflow-hidden shadow-2xl">
+      <div class="p-4 border-b border-filmBorder flex items-center justify-between">
+        <div>
+          <h3 id="videoModalTitle" class="font-serif text-lg font-bold text-white">Reel Preview</h3>
+          <p id="videoModalDesc" class="text-xs text-gray-400">Reproducción de muestra audiovisual</p>
+        </div>
+        <button onclick="closeVideoModal()" class="w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 text-white flex items-center justify-center transition-colors">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <div class="aspect-video w-full bg-black relative">
+        <iframe id="videoIframe" class="w-full h-full" src="" title="Video Player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Project Dataset
+    const projectsData = [
+      {
+        title: "A oscuras",
+        category: "Cortometraje / Dirección de Arte & Colorimetría",
+        year: "2025",
+        role: "Director de Arte & Colorista",
+        tools: ["Cámaras Sony Full-Frame 4K", "Iluminación Escénica", "Ópticas Anamórficas"],
+        image: "https://images.unsplash.com/photo-1485846234645-a62644f84728?auto=format&fit=crop&w=1200&q=80",
+        synopsis: "Exploración psicológica de la soledad en un departamento claustrofóbico. Se trabajó con contrastes de alta densidad cromática, dominantes frías con fuentes puntuales de tungsteno y un grano de película emulado para potenciar la aspereza de la trama.",
+        stills: [
+          "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=600&q=80",
+          "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=600&q=80"
+        ]
+      },
+      {
+        title: "Identidad & Barrio",
+        category: "Serie Documental / Realización y Montaje",
+        year: "2025",
+        role: "Director, Camarógrafo & Montajista",
+        tools: ["Cámara Sony 4K", "Lentes Vintage 28mm & 50mm", "Microfonía Inalámbrica"],
+        image: "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1200&q=80",
+        synopsis: "Serie documental de 4 episodios centrada en clubes barriales y personajes cotidianos que resisten el paso del tiempo. Registro cámara en mano para lograr cercanía e intimidad visual.",
+        stills: [
+          "https://images.unsplash.com/photo-1517649763962-0c623266ddc0?auto=format&fit=crop&w=600&q=80",
+          "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=600&q=80"
+        ]
+      },
+      {
+        title: "Dynamic Speed & Movement",
+        category: "Cobertura Deportiva & Reel Cinematográfico",
+        year: "2024",
+        role: "Operador de Cámara & Fotógrafo de Pista",
+        tools: ["Cámaras Sony Full-Frame (120fps)", "Drone DJI 4k", "Gimbal Gimbal RS"],
+        image: "https://images.unsplash.com/photo-1517649763962-0c623266ddc0?auto=format&fit=crop&w=1200&q=80",
+        synopsis: "Cobertura en pista de automovilismo y disciplinas de alta velocidad. Se emplearon técnicas de estabilización giroscópica combinadas con altas velocidades de obturación para congelar el drama de la competencia.",
+        stills: [
+          "https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?auto=format&fit=crop&w=600&q=80",
+          "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80"
+        ]
+      },
+      {
+        title: "Ajec | Cintas Autoadhesivas",
+        category: "Campaña Comercial & Guion / Edición",
+        year: "2024",
+        role: "Guionista Técnico, Fotógrafo & Editor",
+        tools: ["Cámaras Sony Full-Frame 4K", "Iluminación de Estudio", "Óptica Macro"],
+        image: "https://images.unsplash.com/photo-1542751371-adc38448a05e?auto=format&fit=crop&w=1200&q=80",
+        synopsis: "Campaña publicitaria y de producto para Ajec Cintas Autoadhesivas. Planos macro de resistencia, rodaje en instalaciones industriales y armado de piezas para redes y difusión corporativa.",
+        stills: [
+          "https://images.unsplash.com/photo-1485846234645-a62644f84728?auto=format&fit=crop&w=600&q=80",
+          "https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=600&q=80"
+        ]
+      },
+      {
+        title: "Atmósferas & Luz",
+        category: "Exploración Visual / Fotografía y Puesta en Escena",
+        year: "2024",
+        role: "Director de Fotografía & Diseñador Escénico",
+        tools: ["Cámaras Sony 4K", "Hazer / Máquina de Humo", "Iluminación LED Bicolor"],
+        image: "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=1200&q=80",
+        synopsis: "Laboratorio experimental de iluminación en estudio. Exploración de haces de luz recortados, niebla en suspensión volumétrica y siluetas dramáticas.",
+        stills: [
+          "https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=600&q=80",
+          "https://images.unsplash.com/photo-1517649763962-0c623266ddc0?auto=format&fit=crop&w=600&q=80"
+        ]
+      },
+      {
+        title: "Motion Graphics & Brand Pack",
+        category: "Identidad Visual & Gráfica Dinámica",
+        year: "2024",
+        role: "Motion Designer & Diseñador Gráfico",
+        tools: ["Diseño Tipográfico", "Animación 2D", "Pack de Zócalos Deportivos"],
+        image: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1200&q=80",
+        synopsis: "Sistema modular de identidades gráficas en movimiento: placas de partido, overlays dinámicos y transiciones con identidad visual de impacto.",
+        stills: [
+          "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=600&q=80",
+          "https://images.unsplash.com/photo-1492691527719-9d1e07e534b4?auto=format&fit=crop&w=600&q=80"
+        ]
+      }
+    ];
+
+    // Mobile Menu Toggle
+    const mobileBtn = document.getElementById('mobileMenuBtn');
+    const mobileMenu = document.getElementById('mobileMenu');
+    mobileBtn.addEventListener('click', () => {
+      mobileMenu.classList.toggle('hidden');
+    });
+
+    document.querySelectorAll('.mobile-nav-link').forEach(link => {
+      link.addEventListener('click', () => {
+        mobileMenu.classList.add('hidden');
+      });
+    });
+
+    // Filtering System
+    const filterTabs = document.querySelectorAll('.filter-btn');
+    const projectCards = document.querySelectorAll('.project-card');
+
+    filterTabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        filterTabs.forEach(t => {
+          t.classList.remove('active', 'border-amberGlow', 'bg-amberGlow', 'text-black');
+          t.classList.add('border-filmBorder', 'bg-filmCard', 'text-gray-400');
+        });
+
+        tab.classList.add('active', 'border-amberGlow', 'bg-amberGlow', 'text-black');
+        tab.classList.remove('border-filmBorder', 'bg-filmCard', 'text-gray-400');
+
+        const filter = tab.getAttribute('data-filter');
+
+        projectCards.forEach(card => {
+          const category = card.getAttribute('data-category');
+          if (filter === 'all' || category === filter) {
+            card.style.display = 'flex';
+          } else {
+            card.style.display = 'none';
+          }
+        });
+      });
+    });
+
+    // Project Modal Logic
+    const projectModal = document.getElementById('projectModal');
+    const modalContent = document.getElementById('modalContent');
+
+    function openProjectModal(index) {
+      const p = projectsData[index];
+      if (!p) return;
+
+      const toolsBadges = p.tools.map(t => `<span class="px-3 py-1 rounded-full bg-black/60 border border-filmBorder text-xs text-amberGlow font-mono">${t}</span>`).join('');
+      
+      const stillsHTML = p.stills.map(s => `
+        <div class="rounded-xl overflow-hidden border border-filmBorder aspect-video bg-black/50">
+          <img src="${s}" alt="Fotograma" class="w-full h-full object-cover">
+        </div>
+      `).join('');
+
+      modalContent.innerHTML = `
+        <div class="relative aspect-video w-full bg-black">
+          <img src="${p.image}" alt="${p.title}" class="w-full h-full object-cover">
+          <div class="absolute inset-0 bg-gradient-to-t from-filmCard via-transparent to-transparent"></div>
+        </div>
+
+        <div class="p-8 space-y-6">
+          <div>
+            <div class="flex items-center gap-3 mb-2">
+              <span class="text-xs uppercase font-mono text-amberGlow tracking-wider">${p.category}</span>
+              <span class="text-gray-600">•</span>
+              <span class="text-xs text-gray-400 font-mono">${p.year}</span>
+            </div>
+            <h3 class="text-3xl sm:text-4xl font-serif font-bold text-white">${p.title}</h3>
+            <p class="text-sm text-gray-300 font-medium mt-1">Rol desempeñado: <span class="text-white">${p.role}</span></p>
+          </div>
+
+          <div class="space-y-2">
+            <h4 class="text-xs uppercase font-mono text-gray-400 tracking-wider">Sinopsis & Enfoque</h4>
+            <p class="text-gray-300 text-sm leading-relaxed">${p.synopsis}</p>
+          </div>
+
+          <div class="space-y-3">
+            <h4 class="text-xs uppercase font-mono text-gray-400 tracking-wider">Configuración & Setup</h4>
+            <div class="flex flex-wrap gap-2">
+              ${toolsBadges}
+            </div>
+          </div>
+
+          <div class="space-y-3 pt-4 border-t border-filmBorder">
+            <h4 class="text-xs uppercase font-mono text-gray-400 tracking-wider">Fotogramas del Proyecto</h4>
+            <div class="grid grid-cols-2 gap-4">
+              ${stillsHTML}
+            </div>
+          </div>
+
+          <div class="pt-4 flex justify-end">
+            <button onclick="closeProjectModal()" class="px-6 py-2.5 rounded-full bg-filmBorder hover:bg-gray-700 text-white text-xs uppercase tracking-wider font-semibold transition-colors">
+              Cerrar Detalle
+            </button>
+          </div>
+        </div>
+      `;
+
+      projectModal.classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+      lucide.createIcons();
+    }
+
+    function closeProjectModal() {
+      projectModal.classList.add('hidden');
+      document.body.style.overflow = '';
+    }
+
+    // Video Player Modal
+    const videoModal = document.getElementById('videoModal');
+    const videoIframe = document.getElementById('videoIframe');
+    const videoTitle = document.getElementById('videoModalTitle');
+    const videoDesc = document.getElementById('videoModalDesc');
+
+    function openVideoModal(url, title, description) {
+      videoIframe.src = url;
+      videoTitle.textContent = title;
+      videoDesc.textContent = description;
+      videoModal.classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeVideoModal() {
+      videoIframe.src = '';
+      videoModal.classList.add('hidden');
+      document.body.style.overflow = '';
+    }
+
+    // Keyboard navigation
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeProjectModal();
+        closeVideoModal();
+      }
+    });
+
+    projectModal.addEventListener('click', (e) => {
+      if (e.target === projectModal) closeProjectModal();
+    });
+    videoModal.addEventListener('click', (e) => {
+      if (e.target === videoModal) closeVideoModal();
+    });
+
+    // Form submission feedback
+    function handleContactSubmit(e) {
+      e.preventDefault();
+      const feedback = document.getElementById('formFeedback');
+      const name = document.getElementById('name').value;
+      const type = document.getElementById('projectType').value;
+
+      feedback.className = 'p-4 rounded-xl text-center text-xs font-medium bg-amberGlow/10 border border-amberGlow text-amberGlow mt-4';
+      feedback.textContent = `¡Gracias por contactar, ${name}! Tu solicitud para "${type}" fue registrada. Te responderé a la brevedad a tu casilla de correo.`;
+      feedback.classList.remove('hidden');
+
+      document.getElementById('contactForm').reset();
+
+      setTimeout(() => {
+        feedback.classList.add('hidden');
+      }, 7000);
+    }
+
+    // Initialize Lucide Icons on load
+    window.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+    });
+  </script>
+
+</body>
+</html>
