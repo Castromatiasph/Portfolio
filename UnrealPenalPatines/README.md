@@ -71,9 +71,19 @@ Modos: práctica, tanda contra un rival, **Atajá vos**, **Desafíos** (7 objeti
 en cámara lenta (clic o Espacio para saltearla); hinchada que salta, papelitos, red del arco, publicidad en la valla; sonidos
 sintetizados (`Tools/make_sounds.py`) y ambiente de estadio; jugador armado con formas básicas que patina (piernas, brazos, palo).
 
+## Jugador: Matías (modelo propio)
+
+El jugador es el modelo `Matias_175cm.glb` (MakeHuman, esqueleto de 137 huesos, sin animaciones). Se prepara así:
+- `Tools/prepare_matias_mesh.py` saca texturas y morph targets (2 MB en vez de 28) → `SK_Matias.glb`.
+- `Tools/dress_matias.py` **lo viste** (camiseta azul con bandas celestes, short, medias, patines y guantes) pintando sobre la textura de piel
+  con los pesos del esqueleto, y extrae pelo, cejas, ojos y dientes.
+- `setup_level.py` importa todo a `/Game/Models/SK_Matias` y `/Game/Textures/Matias`, y crea `M_Cutout` (pelo/cejas con transparencia por recorte).
+- `PPRig` lo mueve por código (sin AnimBP): pelvis, inclinación y giro del torso, brazos al palo y piernas con IK de dos huesos; detecta solo
+  los ejes y la escala del modelo. Si algo falla (falta un hueso), cae al cuerpo de formas básicas y lo avisa en el Output Log.
+
 ## Qué falta
 
-1. **Personajes realistas y animados.** El jugador y el arquero siguen siendo formas básicas. `PPShooter` y `PPGoalkeeper` exponen las
+1. **Arquero realista.** El arquero sigue siendo de formas básicas (el jugador ya es Matías). `PPShooter` y `PPGoalkeeper` exponen las
    variables para un AnimBP (`Speed`, `StridePhase`, `Amp`, `Brake`, `LeanRoll`, `TwistAlpha`, `StickPitch`; `Kneel`, `Play`, `PadExt`,
    `Lean`, `PokeAlpha`). Poné `IMPORT_MODELS = True` en `Tools/setup_level.py` para importar `SK_Matias` y `SK_Jugador`, o usá un
    **MetaHuman**, retargetealo y armá un AnimBP con Control Rig / FullBodyIK. Asignalo en `BodyMesh`.

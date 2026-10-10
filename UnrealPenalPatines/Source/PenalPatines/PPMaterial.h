@@ -29,4 +29,16 @@ namespace PP
 		}
 		return M;
 	}
+
+	/** Material con transparencia por recorte (alfa de la textura). Usa /Game/Materials/M_Cutout; devuelve nullptr si no existe. */
+	inline UMaterialInstanceDynamic* CutoutMID(UObject* Outer, UTexture* Tex, const FLinearColor& Tint = FLinearColor::White, float Rough = .6f)
+	{
+		UMaterialInterface* Base = LoadObject<UMaterialInterface>(nullptr, TEXT("/Game/Materials/M_Cutout.M_Cutout"));
+		if (!Base || !Tex) return nullptr;
+		UMaterialInstanceDynamic* M = UMaterialInstanceDynamic::Create(Base, Outer);
+		M->SetTextureParameterValue(TEXT("Tex"), Tex);
+		M->SetVectorParameterValue(TEXT("Color"), Tint);
+		M->SetScalarParameterValue(TEXT("Roughness"), Rough);
+		return M;
+	}
 }

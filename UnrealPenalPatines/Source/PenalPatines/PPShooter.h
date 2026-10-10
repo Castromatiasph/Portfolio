@@ -3,11 +3,13 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Pawn.h"
 #include "PPTypes.h"
+#include "PPRig.h"
 #include "PPShooter.generated.h"
 
 class UCameraComponent;
 class UStaticMeshComponent;
 class USkeletalMeshComponent;
+class UPPPoseMesh;
 class APPGameMode;
 
 /** Pose del tiro en el espacio del torso (REST/BACK/FOLLOW del juego web). */
@@ -42,7 +44,7 @@ public:
 	virtual void SetupPlayerInputComponent(UInputComponent* Input) override;
 
 	// ---- componentes ----
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TObjectPtr<USkeletalMeshComponent> BodyMesh;
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TObjectPtr<UPPPoseMesh> BodyMesh;   // SK_Matias, posado por código (PPRig)
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TObjectPtr<UStaticMeshComponent> StickMesh;
 	// cuerpo provisorio armado con formas básicas (se oculta cuando se asigna un SkeletalMesh en BodyMesh)
 	UPROPERTY() TObjectPtr<UStaticMeshComponent> TorsoC;
@@ -130,6 +132,7 @@ private:
 	void OnPause();
 
 	float Braking = 0.f, BrakeK = 0.f, StartK = 0.f, HipSway = 0.f;
+	FPPRig Rig; bool bRig = false;
 	FPPVec CamLookG = FPPVec(0.f, .62f, .4f);
 	FPPVec CamPosG = FPPVec::ZeroVector;
 	FPPVec2 AimStick = FPPVec2::ZeroVector;

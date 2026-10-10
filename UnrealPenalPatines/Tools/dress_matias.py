@@ -1,0 +1,135 @@
+"""Viste al modelo Matias_175cm.glb (cuerpo desnudo de MakeHuman): pinta camiseta, short, medias, patines y guantes
+sobre la textura de piel usando los pesos del esqueleto (sin tocar la malla), y extrae las demás texturas.
+Salida en SourceAssets/Textures/Matias/. Uso: python Tools/dress_matias.py   (necesita pillow y numpy)"""
+import json, struct, os, sys
+import numpy as np
+from PIL import Image, ImageDraw, ImageFont, ImageFilter
+Image.MAX_IMAGE_PIXELS = None
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+GLB = os.path.join(HERE, "..", "SourceAssets", "Models", "Matias_175cm.glb")
+OUT = os.path.join(HERE, "..", "SourceAssets", "Textures", "Matias")
+os.makedirs(OUT, exist_ok=True)
+
+b = open(GLB, "rb").read()
+off = 12; js = None; bo = None
+while off < len(b):
+    cl, ct = struct.unpack("<I4s", b[off:off + 8])
+    if ct == b"JSON": js = json.loads(b[off + 8:off + 8 + cl])
+    elif ct == b"BIN\0": bo = off + 8
+    off += 8 + cl
+
+def view(i):
+    v = js["bufferViews"][i]; s = bo + v.get("byteOffset", 0)
+    return b[s:s + v["byteLength"]], v.get("byteStride")
+
+CT = {5120: np.int8, 5121: np.uint8, 5122: np.int16, 5123: np.uint16, 5125: np.uint32, 5126: np.float32}
+NC = {"SCALAR": 1, "VEC2": 2, "VEC3": 3, "VEC4": 4}
+def acc(i):
+    a = js["accessors"][i]; data, stride = view(a["bufferView"]); dt = np.dtype(CT[a["componentType"]]); n = NC[a["type"]]
+    if stride and stride != dt.itemsize * n:
+        arr = np.frombuffer(data, dtype=np.uint8)[a.get("byteOffset", 0):]
+        rows = [np.frombuffer(arr[k * stride:k * stride + dt.itemsize * n].tobytes(), dtype=dt) for k in range(a["count"])]
+        return np.array(rows)
+    return np.frombuffer(data, dtype=dt, count=a["count"] * n, offset=a.get("byteOffset", 0)).reshape(a["count"], n) if n > 1 else \
+        np.frombuffer(data, dtype=dt, count=a["count"], offset=a.get("byteOffset", 0))
+
+# ---- extraer todas las imágenes y el mapa material -> textura ----
+names = {}
+for i, im in enumerate(js["images"]):
+    data, _ = view(im["bufferView"])
+    fn = os.path.join(OUT, "_raw_%d_%s.png" % (i, im.get("name")))
+    open(fn, "wb").write(data); names[i] = fn
+def mat_tex(m):
+    pbr = m.get("pbrMetallicRoughness", {}); t = pbr.get("baseColorTexture")
+    return js["textures"][t["index"]]["source"] if t else None
+matmap = {m["name"]: mat_tex(m) for m in js["materials"]}
+print("material -> imagen:", matmap)
+for mname, label in (("Human.eyebrow001", "Brow"), ("Human.eyelashes01", "Lash"), ("Human.high-poly", "Eye"), ("Human.short01", "Hair"), ("Human.teeth_base", "Teeth"), ("Human.tongue01", "Tongue")):
+    i = matmap.get(mname)
+    if i is not None:
+        im = Image.open(names[i]); im.thumbnail((1024, 1024)); im.save(os.path.join(OUT, "T_Matias_%s.png" % label)); print("ok", label)
+
+# ---- malla del cuerpo: posiciones, UV, pesos ----
+mesh = [m for m in js["meshes"] if m["name"] == "base"][0]; pr = mesh["primitives"][0]
+P = acc(pr["attributes"]["POSITION"]).astype(np.float32)
+UV = acc(pr["attributes"]["TEXCOORD_0"]).astype(np.float32)
+J = acc(pr["attributes"]["JOINTS_0"]).astype(np.int32)
+Wt = acc(pr["attributes"]["WEIGHTS_0"]).astype(np.float32)
+IDX = acc(pr["indices"]).astype(np.int64).reshape(-1, 3)
+skin = js["skins"][0]; jn = [js["nodes"][j]["name"] for j in skin["joints"]]
+print("vértices", len(P), "triángulos", len(IDX))
+
+def klass(n):
+    n = n.lower()
+    if n.startswith(("wrist", "finger", "metacarpal")): return "glove"
+    if n.startswith(("upperarm",)): return "sleeve"
+    if n.startswith(("spine", "breast", "clavicle", "shoulder")): return "torso"
+    if n.startswith(("pelvis", "root", "upperleg01")): return "shorts"
+    if n.startswith(("lowerleg",)): return "sock"
+    if n.startswith(("foot", "toe")): return "boot"
+    return "skin"
+CL = ["torso", "sleeve", "shorts", "sock", "boot", "glove"]
+field = np.zeros((len(P), len(CL)), np.float32)
+for k in range(4):
+    for ci, c in enumerate(CL):
+        m = np.array([klass(jn[j]) == c for j in J[:, k]])
+        field[:, ci] += Wt[:, k] * m
+
+# ---- rasterizar atributos (posición + campos) en el espacio UV a 2048 ----
+R = 2048
+attr = np.concatenate([P, field], axis=1)               # x,y,z + 6 campos
+buf = np.zeros((R, R, attr.shape[1]), np.float32); cov = np.zeros((R, R), bool)
+uvp = UV * R
+for tri in IDX:
+    a, bb, c = uvp[tri[0]], uvp[tri[1]], uvp[tri[2]]
+    x0, x1 = int(max(0, np.floor(min(a[0], bb[0], c[0])))), int(min(R - 1, np.ceil(max(a[0], bb[0], c[0]))))
+    y0, y1 = int(max(0, np.floor(min(a[1], bb[1], c[1])))), int(min(R - 1, np.ceil(max(a[1], bb[1], c[1]))))
+    if x1 < x0 or y1 < y0: continue
+    den = (bb[1] - c[1]) * (a[0] - c[0]) + (c[0] - bb[0]) * (a[1] - c[1])
+    if abs(den) < 1e-9: continue
+    gx, gy = np.meshgrid(np.arange(x0, x1 + 1) + .5, np.arange(y0, y1 + 1) + .5)
+    l1 = ((bb[1] - c[1]) * (gx - c[0]) + (c[0] - bb[0]) * (gy - c[1])) / den
+    l2 = ((c[1] - a[1]) * (gx - c[0]) + (a[0] - c[0]) * (gy - c[1])) / den
+    l3 = 1 - l1 - l2
+    m = (l1 >= -.02) & (l2 >= -.02) & (l3 >= -.02)
+    if not m.any(): continue
+    val = l1[..., None] * attr[tri[0]] + l2[..., None] * attr[tri[1]] + l3[..., None] * attr[tri[2]]
+    sub = buf[y0:y1 + 1, x0:x1 + 1]; sub[m] = val[m]; cov[y0:y1 + 1, x0:x1 + 1] |= m
+X, Y, Z = buf[..., 0], buf[..., 1], buf[..., 2]
+F = {c: buf[..., 3 + i] for i, c in enumerate(CL)}
+
+NAVY = np.array([31, 38, 87], np.float32); SKY = np.array([58, 154, 217], np.float32); WHITE = np.array([228, 232, 238], np.float32); BLACK = np.array([14, 15, 18], np.float32)
+col = np.zeros((R, R, 3), np.float32); mask = np.zeros((R, R), np.float32)
+def paint(sel, color):
+    col[sel] = color; mask[sel] = 1
+# camiseta: azul marino con bandas celeste y blanca, y puño blanco en la manga
+jersey = ((F["torso"] > .5) & (Y > .90) & (Y < 1.5)) | ((F["sleeve"] > .5) & (np.abs(X) < .45))
+paint(jersey, NAVY)
+body = jersey & (F["torso"] > .5) & (np.abs(X) < .24)
+paint(body & (Y > 1.05) & (Y < 1.09), WHITE); paint(body & (Y >= 1.09) & (Y < 1.20), SKY); paint(body & (Y >= 1.20) & (Y < 1.24), WHITE)
+paint(body & (Y < .94), WHITE)
+paint((F["sleeve"] > .5) & (np.abs(X) >= .36) & (np.abs(X) < .38), WHITE)
+# short con vivo, medias con franja, patines y guantes
+shorts = ((F["shorts"] > .4) | ((Y > .60) & (Y < .97))) & (Y > .56) & (Y < .97) & (np.abs(X) < .27) & ~jersey & (F["glove"] < .5) & (F["sock"] < .5) & cov
+paint(shorts, NAVY); paint(shorts & (np.abs(X) > .14) & (np.abs(X) < .165), WHITE)
+socks = (F["sock"] > .5) & (Y > .10)
+paint(socks, NAVY); paint(socks & (Y > .33) & (Y < .37), WHITE)
+paint((F["boot"] > .5) | ((F["sock"] > .5) & (Y <= .10)), BLACK)
+paint((F["glove"] > .5) & (Y < 1.45), np.array([20, 21, 26], np.float32))
+# bordes suaves
+mask_img = Image.fromarray((mask * 255).astype(np.uint8)).resize((4096, 4096), Image.BICUBIC).filter(ImageFilter.GaussianBlur(1.2))
+col_img = Image.fromarray(np.clip(col, 0, 255).astype(np.uint8)).resize((4096, 4096), Image.BICUBIC)
+skin_img = Image.open(names[matmap["Human.body"]]).convert("RGB")
+if skin_img.size != (4096, 4096): skin_img = skin_img.resize((4096, 4096))
+# la tela conserva un poco del sombreado de la piel para que no se vea plana
+lum = np.asarray(skin_img.convert("L"), np.float32) / 255.0
+shade = (0.88 + 0.24 * (lum - lum.mean()))[..., None]
+cloth = np.clip(np.asarray(col_img, np.float32) * shade, 0, 255)
+m4 = (np.asarray(mask_img, np.float32) / 255.0)[..., None]
+res = np.asarray(skin_img, np.float32) * (1 - m4) + cloth * m4
+Image.fromarray(np.clip(res, 0, 255).astype(np.uint8)).save(os.path.join(OUT, "T_Matias_BaseColor.png"))
+prev = Image.open(os.path.join(OUT, "T_Matias_BaseColor.png")); prev.thumbnail((1000, 1000)); prev.save(os.path.join(HERE, "..", "SourceAssets", "Textures", "Matias", "_preview.png"))
+print("ok T_Matias_BaseColor.png")
+for f in os.listdir(OUT):
+    if f.startswith("_raw_"): os.remove(os.path.join(OUT, f))

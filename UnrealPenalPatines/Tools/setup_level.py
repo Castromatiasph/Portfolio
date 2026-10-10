@@ -79,6 +79,7 @@ try:
         eal.delete_asset(path)
     m = at.create_asset("M_Color", "/Game/Materials", unreal.Material, unreal.MaterialFactoryNew())
     m.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_CLEAR_COAT)
+    m.set_editor_property("used_with_skeletal_mesh", True)   # para el cuerpo de Matías
 
     def node(cls, x, y, **kw):
         n = mel.create_material_expression(m, cls, x, y)
@@ -118,11 +119,66 @@ try:
 except Exception as e:
     log("M_Color: %s" % e)
 
+# 3b) material con recorte M_Cutout (pelo, cejas, pestañas) ------------------------
+try:
+    path = "/Game/Materials/M_Cutout"
+    if eal.does_asset_exist(path):
+        eal.delete_asset(path)
+    mc = at.create_asset("M_Cutout", "/Game/Materials", unreal.Material, unreal.MaterialFactoryNew())
+    mc.set_editor_property("blend_mode", unreal.BlendMode.BLEND_MASKED)
+    mc.set_editor_property("two_sided", True)
+    mc.set_editor_property("used_with_skeletal_mesh", True)
+
+    def cnode(cls, x, y, **kw):
+        n = mel.create_material_expression(mc, cls, x, y)
+        for k, v in kw.items():
+            n.set_editor_property(k, v)
+        return n
+
+    cts = cnode(unreal.MaterialExpressionTextureSampleParameter2D, -600, 0, parameter_name="Tex")
+    wt = eal.load_asset("/Engine/EngineResources/WhiteSquareTexture")
+    if wt:
+        cts.set_editor_property("texture", wt)
+    ccol = cnode(unreal.MaterialExpressionVectorParameter, -600, 250, parameter_name="Color", default_value=unreal.LinearColor(1, 1, 1, 1))
+    cmul = cnode(unreal.MaterialExpressionMultiply, -300, 100)
+    mel.connect_material_expressions(cts, "RGB", cmul, "A")
+    mel.connect_material_expressions(ccol, "", cmul, "B")
+    mel.connect_material_property(cmul, "", prop("MP_BASE_COLOR"))
+    mel.connect_material_property(cts, "A", prop("MP_OPACITY_MASK"))
+    crough = cnode(unreal.MaterialExpressionScalarParameter, -300, 350, parameter_name="Roughness", default_value=0.6)
+    mel.connect_material_property(crough, "", prop("MP_ROUGHNESS"))
+    mel.recompile_material(mc)
+    eal.save_loaded_asset(mc)
+    log("M_Cutout creado")
+except Exception as e:
+    log("M_Cutout: %s" % e)
+
+# 3c) jugador: Matías (malla con esqueleto + texturas vestidas) ----------------------
+try:
+    mdir = os.path.join(SRC, "Textures", "Matias")
+    pngs = sorted(os.path.join(mdir, f) for f in os.listdir(mdir) if f.startswith("T_Matias_") and f.endswith(".png"))
+    import_files(pngs, "/Game/Textures/Matias")
+    for p_ in pngs:
+        t_ = eal.load_asset("/Game/Textures/Matias/" + os.path.basename(p_)[:-4])
+        if t_:
+            t_.set_editor_property("srgb", True)
+            eal.save_loaded_asset(t_)
+    import_files([os.path.join(SRC, "Models", "SK_Matias.glb")], "/Game/Models")
+    if not eal.does_asset_exist("/Game/Models/SK_Matias"):
+        reg = unreal.AssetRegistryHelpers.get_asset_registry()
+        for a_ in reg.get_assets_by_path("/Game/Models", recursive=False):
+            if str(a_.asset_class_path.asset_name) == "SkeletalMesh":
+                eal.rename_asset(str(a_.package_name), "/Game/Models/SK_Matias")
+                break
+    log("Matías importado: %s" % eal.does_asset_exist("/Game/Models/SK_Matias"))
+except Exception as e:
+    log("Matías: %s" % e)
+
 # 4) modelos (opcional) ---------------------------------------------------------
 if IMPORT_MODELS:
     mdir = os.path.join(SRC, "Models")
     for f in sorted(os.listdir(mdir)):
-        if f.endswith(".gltf"):
+        if f.endswith(".gltf"):  # modelos del juego web (SM_Arco, SM_Patin, ...)
             try:
                 import_files([os.path.join(mdir, f)], "/Game/Models")
             except Exception as e:

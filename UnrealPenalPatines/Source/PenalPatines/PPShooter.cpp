@@ -2,6 +2,9 @@
 #include "PPGameMode.h"
 #include "PPBall.h"
 #include "PPMaterial.h"
+#include "PPPoseMesh.h"
+#include "Engine/SkeletalMesh.h"
+#include "Engine/Texture2D.h"
 #include "Camera/CameraComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -23,7 +26,7 @@ APPShooter::APPShooter()
 	USceneComponent* Root = CreateDefaultSubobject<USceneComponent>(TEXT("Root"));
 	RootComponent = Root;
 
-	BodyMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("BodyMesh"));
+	BodyMesh = CreateDefaultSubobject<UPPPoseMesh>(TEXT("BodyMesh"));
 	BodyMesh->SetupAttachment(Root);
 	BodyMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
@@ -302,6 +305,7 @@ void APPShooter::ApplyVisual(float Dt, EPPState State)
 	const FPPVec ShL = Sh0 + FPPVec(-.2f * Ctw, 0.f, .2f * Stw), ShR = Sh0 + FPPVec(.2f * Ctw, 0.f, -.2f * Stw);
 	Seg(TorsoC, Hip, Sh0, .32f);
 	if (HeadC) { HeadC->SetRelativeLocation(PP::ToUE(Sh0 + FPPVec(0.f, .2f, -.1f * FMath::Sin(A)))); HeadC->SetRelativeScale3D(FVector(.22)); }
+	FPPVec Feet[2]; float Lifts[2] = { 0.f, 0.f };
 	for (int i = 0; i < 2; i++)
 	{
 		const float Sd = i == 0 ? -1.f : 1.f;
@@ -309,6 +313,7 @@ void APPShooter::ApplyVisual(float Dt, EPPState State)
 		const float Zf = -FMath::Sin(Ph) * .35f * Amp;                   // adelante = -z
 		const float Lift = FMath::Max(0.f, FMath::Cos(Ph)) * .1f * Amp;
 		const FPPVec Foot(Sd * .14f + HipSway * .5f + Sd * Brake * .12f, .09f + Lift, Zf);
+		Feet[i] = Foot; Lifts[i] = Lift;
 		Seg(LegC[i], Hip + FPPVec(Sd * .11f, 0.f, 0.f), Foot + FPPVec(0.f, .03f, 0.f), .16f);
 		if (SkateC[i])
 		{
@@ -318,14 +323,25 @@ void APPShooter::ApplyVisual(float Dt, EPPState State)
 	}
 
 	// ---- palo y manos ----
-	const FPPVec Hand(CurPose.H.X, HipY + CurPose.H.Y, CurPose.H.Z);
+	const FPPVec Hand(CurPose.H.X, HipY + CurPose.H.Y + .08f, CurPose.H.Z);   // +8 cm: el jugador está sobre los patines
 	const float C = FMath::Cos(CurPose.Th), S = FMath::Sin(CurPose.Th);
 	FPPVec D(StickRestDir.X, StickRestDir.Y * C - StickRestDir.Z * S, StickRestDir.Y * S + StickRestDir.Z * C);
 	D.Normalize();
-	const float Len = 1.1f;
+	const float Len = 1.18f;
 	Seg(StickMesh, Hand - D * .05f, Hand + D * Len, .028f);
-	Seg(ArmC[0], ShL, Hand + D * .3f, .1f);    // mano de abajo (izquierda)
+	Seg(ArmC[0], ShL, Hand + D * .24f, .1f);    // mano de abajo (izquierda)
 	Seg(ArmC[1], ShR, Hand + D * .05f, .1f);   // mano de arriba (derecha)
+
+	if (bRig)
+	{
+		FPPRigTargets T;
+		T.HipHeight = Rig.PelvisRestH + .08f - .10f - .05f * Amp - .04f * Brake;   // sobre los patines, con las rodillas flexionadas
+		T.HipX = HipSway; T.Lean = A; T.Twist = Tw;
+		T.HandL = Hand + D * .24f; T.HandR = Hand + D * .05f;
+		T.AnkleL = Feet[0] + FPPVec(0.f, .08f, 0.f); T.AnkleR = Feet[1] + FPPVec(0.f, .08f, 0.f);
+		T.FootPitchL = FMath::Clamp(Lifts[0] * 3.f, 0.f, .5f); T.FootPitchR = FMath::Clamp(Lifts[1] * 3.f, 0.f, .5f);
+		Rig.Pose(T);
+	}
 }
 
 void APPShooter::CamUpdate(float Dt, EPPState State, const FPPVec& BallPos, float GkX)
@@ -386,8 +402,35 @@ void APPShooter::BeginPlay()
 	for (auto& S : SkateC) Col(S, FLinearColor(.02f, .02f, .025f), .35f);   // patines
 	for (auto& A : ArmC) Col(A, FLinearColor(.45f, .28f, .2f), .55f);
 	Col(StickMesh, FLinearColor(.75f, .55f, .3f), .4f);                     // palo de madera
-	const bool bSk = BodyMesh && BodyMesh->GetSkeletalMeshAsset();
-	if (bSk) { for (auto* C : {TorsoC.Get(), HeadC.Get()}) if (C) C->SetVisibility(false); }
+	// ---- Matías (SK_Matias) posado por código ----
+	if (USkeletalMesh* SK = LoadObject<USkeletalMesh>(nullptr, TEXT("/Game/Models/SK_Matias.SK_Matias")))
+	{
+		BodyMesh->SetSkinnedAssetAndUpdate(SK, true);
+		auto Tex = [](const TCHAR* N) { return LoadObject<UTexture>(nullptr, *FString::Printf(TEXT("/Game/Textures/Matias/%s.%s"), N, N)); };
+		const TArray<FName> Slots = BodyMesh->GetMaterialSlotNames();
+		for (int32 i = 0; i < Slots.Num(); i++)
+		{
+			const FString N = Slots[i].ToString().ToLower();
+			UMaterialInterface* M = nullptr;
+			if (N.Contains(TEXT("body"))) M = PP::ColorMID(this, FLinearColor::White, .55f, FLinearColor::Black, Tex(TEXT("T_Matias_BaseColor")));
+			else if (N.Contains(TEXT("eyebrow"))) M = PP::CutoutMID(this, Tex(TEXT("T_Matias_Brow")), FLinearColor(.1f, .08f, .07f));
+			else if (N.Contains(TEXT("eyelash"))) M = PP::CutoutMID(this, Tex(TEXT("T_Matias_Lash")), FLinearColor(.05f, .05f, .05f));
+			else if (N.Contains(TEXT("short"))) M = PP::CutoutMID(this, Tex(TEXT("T_Matias_Hair")), FLinearColor::White, .45f);
+			else if (N.Contains(TEXT("high-poly"))) M = PP::ColorMID(this, FLinearColor::White, .08f, FLinearColor::Black, Tex(TEXT("T_Matias_Eye")), 1.f, 1.f);
+			else if (N.Contains(TEXT("teeth"))) M = PP::ColorMID(this, FLinearColor::White, .35f, FLinearColor::Black, Tex(TEXT("T_Matias_Teeth")));
+			else if (N.Contains(TEXT("tongue"))) M = PP::ColorMID(this, FLinearColor::White, .5f, FLinearColor::Black, Tex(TEXT("T_Matias_Tongue")));
+			if (M) BodyMesh->SetMaterial(i, M);
+		}
+		if (Rig.Init(BodyMesh))
+		{
+			bRig = true;
+			BodyMesh->SetRelativeRotation(Rig.CompRot.Rotator());
+			BodyMesh->SetRelativeLocation(Rig.CompLoc);
+			BodyMesh->SetRelativeScale3D(FVector(Rig.CompScale));
+			for (auto* C : {TorsoC.Get(), HeadC.Get(), ArmC[0].Get(), ArmC[1].Get(), LegC[0].Get(), LegC[1].Get()}) if (C) C->SetVisibility(false);
+		}
+		else BodyMesh->SetVisibility(false);
+	}
 }
 
 void APPShooter::CamReplay(float Dt, const FPPVec& B)
