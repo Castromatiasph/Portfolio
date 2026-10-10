@@ -133,6 +133,7 @@ private:
 
 	float Braking = 0.f, BrakeK = 0.f, StartK = 0.f, HipSway = 0.f;
 	FPPRig Rig; bool bRig = false;
+	bool bRealStick = false; float StickShaftSign = -1.f, StickToeSign = 1.f, StickScale = 1.f;   // palo real (SM_Palo)
 	FPPVec CamLookG = FPPVec(0.f, .62f, .4f);
 	FPPVec CamPosG = FPPVec::ZeroVector;
 	FPPVec2 AimStick = FPPVec2::ZeroVector;

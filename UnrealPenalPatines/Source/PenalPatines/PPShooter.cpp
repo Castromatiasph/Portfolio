@@ -328,7 +328,14 @@ void APPShooter::ApplyVisual(float Dt, EPPState State)
 	FPPVec D(StickRestDir.X, StickRestDir.Y * C - StickRestDir.Z * S, StickRestDir.Y * S + StickRestDir.Z * C);
 	D.Normalize();
 	const float Len = 1.18f;
-	Seg(StickMesh, Hand - D * .05f, Hand + D * Len, .028f);
+	if (bRealStick)
+	{
+		const FVector DirUE = PP::ToUE(D).GetSafeNormal();
+		StickMesh->SetRelativeLocation(PP::ToUE(Hand - D * .05f));
+		StickMesh->SetRelativeRotation(FRotationMatrix::MakeFromZX(DirUE * double(StickShaftSign), FVector(double(StickToeSign), 0.0, 0.0)).Rotator());
+		StickMesh->SetRelativeScale3D(FVector(double(StickScale)));
+	}
+	else Seg(StickMesh, Hand - D * .05f, Hand + D * Len, .028f);
 	Seg(ArmC[0], ShL, Hand + D * .24f, .1f);    // mano de abajo (izquierda)
 	Seg(ArmC[1], ShR, Hand + D * .05f, .1f);   // mano de arriba (derecha)
 
@@ -402,6 +409,20 @@ void APPShooter::BeginPlay()
 	for (auto& S : SkateC) Col(S, FLinearColor(.02f, .02f, .025f), .35f);   // patines
 	for (auto& A : ArmC) Col(A, FLinearColor(.45f, .28f, .2f), .55f);
 	Col(StickMesh, FLinearColor(.75f, .55f, .3f), .4f);                     // palo de madera
+	// palo real (SM_Palo: tapón en el origen, caña hacia abajo, pala hacia adelante); si falta, queda el palo provisorio
+	if (UStaticMesh* SM = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/Models/SM_Palo.SM_Palo")))
+	{
+		const FBoxSphereBounds B = SM->GetBounds();
+		if (B.BoxExtent.Z > 1.0)
+		{
+			StickMesh->SetStaticMesh(SM);
+			StickMesh->SetMaterial(0, PP::ColorMID(this, FLinearColor(.75f, .55f, .3f), .4f));
+			StickShaftSign = B.Origin.Z < 0.0 ? -1.f : 1.f;     // hacia dónde se extiende la caña desde el tapón
+			StickToeSign = B.Origin.X >= 0.0 ? 1.f : -1.f;      // hacia dónde mira la pala
+			StickScale = float(123.0 / (2.0 * B.BoxExtent.Z));  // largo final: 1,23 m aunque el importador escale distinto
+			bRealStick = true;
+		}
+	}
 	// ---- Matías (SK_Matias) posado por código ----
 	if (USkeletalMesh* SK = LoadObject<USkeletalMesh>(nullptr, TEXT("/Game/Models/SK_Matias.SK_Matias")))
 	{

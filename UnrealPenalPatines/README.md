@@ -87,7 +87,7 @@ El jugador es el modelo `Matias_175cm.glb` (MakeHuman, esqueleto de 137 huesos, 
    variables para un AnimBP (`Speed`, `StridePhase`, `Amp`, `Brake`, `LeanRoll`, `TwistAlpha`, `StickPitch`; `Kneel`, `Play`, `PadExt`,
    `Lean`, `PokeAlpha`). Poné `IMPORT_MODELS = True` en `Tools/setup_level.py` para importar `SK_Matias` y `SK_Jugador`, o usá un
    **MetaHuman**, retargetealo y armá un AnimBP con Control Rig / FullBodyIK. Asignalo en `BodyMesh`.
-2. **Palo, bocha y careta con materiales PBR** (el palo del juego web es CC BY-NC-SA y no se incluyó).
+2. **Bocha y careta con materiales PBR.** El palo ya es el modelo real (`SM_Palo`, preparado con `Tools/prepare_stick.py`). Su licencia (CC BY-NC-SA 4.0) no permite uso comercial.
 3. **Joystick en Atajá vos y 2 jugadores** (hoy el arquero se maneja con mouse y teclado).
 4. **Deformación de la red** al entrar la bocha.
 
