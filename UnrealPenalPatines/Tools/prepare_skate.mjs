@@ -1,6 +1,6 @@
 // Prepara el patín (gozdemrl, "70's - 80's Roller Skate", CC BY 4.0) para Unreal:
 // descomprime meshopt + KTX2, baja las texturas a 512 px, orienta la punta hacia +Z (adelante en glTF), apoya las ruedas en y=0,
-// centra cerca del tobillo y escala a 30 cm de largo. Uso: node prepare_skate.mjs entrada.glb salida.glb
+// origen en el talón (así Unreal detecta de qué lado está la punta); el tobillo queda a 14,87 cm del origen, y y escala a 30 cm de largo. Uso: node prepare_skate.mjs entrada.glb salida.glb
 // Dependencias: npm i @gltf-transform/core @gltf-transform/extensions meshoptimizer pngjs three  (y copiar three/examples/jsm/libs/basis/basis_transcoder.{js,wasm} como ./basis.cjs y ./basis_transcoder.wasm)
 import { NodeIO } from '@gltf-transform/core';
 import { ALL_EXTENSIONS } from '@gltf-transform/extensions';
@@ -42,7 +42,7 @@ let mn = [1e9, 1e9, 1e9], mx = [-1e9, -1e9, -1e9];
 const prims = [];
 for (const mesh of doc.getRoot().listMeshes()) for (const p of mesh.listPrimitives()) prims.push(p);
 for (const p of prims) { const a = p.getAttribute('POSITION'); const v = [0, 0, 0]; for (let i = 0; i < a.getCount(); i++) { a.getElement(i, v); for (let k = 0; k < 3; k++) { mn[k] = Math.min(mn[k], v[k]); mx[k] = Math.max(mx[k], v[k]); } } }
-const s = 0.30 / (mx[0] - mn[0]), x0 = 20, z0 = (mn[2] + mx[2]) / 2, y0 = mn[1];
+const s = 0.30 / (mx[0] - mn[0]), x0 = mn[0], z0 = (mn[2] + mx[2]) / 2, y0 = mn[1];
 console.log('límites', mn, mx, 'escala', s);
 // (x,y,z) -> (-(z - z0)s, (y - y0)s, (x - x0)s)  [rotación propia de -90° sobre Y: no invierte triángulos]
 for (const p of prims) {

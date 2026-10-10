@@ -321,9 +321,11 @@ void APPShooter::ApplyVisual(float Dt, EPPState State)
 		{
 			if (bRealSkate)
 			{
-				// el patín real apoya las ruedas en su origen; la punta baja un poco cuando el pie se levanta
-				SkateC[i]->SetRelativeLocation(PP::ToUE(Foot + FPPVec(0.f, -.09f, 0.f)));
-				SkateC[i]->SetRelativeRotation(FRotator(-FMath::RadiansToDegrees(FMath::Clamp(Lift * 3.f, 0.f, .5f)), 0.f, 0.f));
+				// ruedas apoyadas en el piso; la punta baja un poco al levantar el pie; el tobillo del patín (14,87 cm del talón) queda bajo el del jugador
+				const FRotator R(-FMath::RadiansToDegrees(FMath::Clamp(Lift * 3.f, 0.f, .5f)), SkateYaw, 0.f);
+				const FVector GroundUE = PP::ToUE(Foot + FPPVec(0.f, -.09f, 0.f));
+				SkateC[i]->SetRelativeRotation(R);
+				SkateC[i]->SetRelativeLocation(GroundUE - R.RotateVector(SkateToeLocal * 14.87));
 				SkateC[i]->SetRelativeScale3D(FVector(double(SkateScale)));
 			}
 			else
@@ -343,9 +345,13 @@ void APPShooter::ApplyVisual(float Dt, EPPState State)
 	if (bRealStick)
 	{
 		const FVector DirUE = PP::ToUE(D).GetSafeNormal();
+		const FQuat QLocal = FRotationMatrix::MakeFromZX(StickTipLocal, StickToeLocal).ToQuat();
+		const FQuat QWorld = FRotationMatrix::MakeFromZX(DirUE, FVector::XAxisVector).ToQuat();
+		// largo para que la pala apoye justo en el piso cuando el palo apunta hacia abajo
+		const float Lm = D.Y < -.35f ? FMath::Clamp(.05f + (Hand.Y - .012f) / (-D.Y), 1.0f, 1.35f) : 1.23f;
 		StickMesh->SetRelativeLocation(PP::ToUE(Hand - D * .05f));
-		StickMesh->SetRelativeRotation(FRotationMatrix::MakeFromZX(DirUE * double(StickShaftSign), FVector(double(StickToeSign), 0.0, 0.0)).Rotator());
-		StickMesh->SetRelativeScale3D(FVector(double(StickScale)));
+		StickMesh->SetRelativeRotation((QWorld * QLocal.Inverse()).Rotator());
+		StickMesh->SetRelativeScale3D(FVector(double(StickScale) * double(Lm) / 1.23));
 	}
 	else Seg(StickMesh, Hand - D * .05f, Hand + D * Len, .028f);
 	Seg(ArmC[0], ShL, Hand + D * .24f, .1f);    // mano de abajo (izquierda)
@@ -426,11 +432,16 @@ void APPShooter::BeginPlay()
 	if (!SK2) PP::ScreenWarn(TEXT("No encontré el patín (SM_PatinReal) en Content/Models. Corré Tools/setup_level.py o importá SourceAssets/Models/SM_PatinReal.glb."));
 	if (SK2)
 	{
+		// el modelo tiene el origen en el talón: la punta está del lado del centro de la caja; el eje largo es el de mayor extensión horizontal
 		const FBoxSphereBounds B = SK2->GetBounds();
-		if (B.BoxExtent.X > 1.0)
+		const bool bLenX = B.BoxExtent.X >= B.BoxExtent.Y;
+		const double ExtLen = bLenX ? B.BoxExtent.X : B.BoxExtent.Y;
+		if (ExtLen > 1.0)
 		{
+			SkateToeLocal = bLenX ? FVector(B.Origin.X >= 0.0 ? 1.0 : -1.0, 0.0, 0.0) : FVector(0.0, B.Origin.Y >= 0.0 ? 1.0 : -1.0, 0.0);
+			SkateYaw = bLenX ? (SkateToeLocal.X > 0.0 ? 0.f : 180.f) : (SkateToeLocal.Y > 0.0 ? -90.f : 90.f);   // lleva la punta a +X (adelante)
+			SkateScale = float(30.0 / (2.0 * ExtLen));
 			for (auto& S : SkateC) if (S) { S->SetStaticMesh(SK2); S->EmptyOverrideMaterials(); }   // conserva los materiales importados
-			SkateScale = float(30.0 / (2.0 * B.BoxExtent.X));
 			bRealSkate = true;
 		}
 	}
@@ -439,13 +450,15 @@ void APPShooter::BeginPlay()
 	if (!SM) PP::ScreenWarn(TEXT("No encontré el palo (SM_Palo) en Content/Models. Corré Tools/setup_level.py o importá SourceAssets/Models/SM_Palo.glb."));
 	if (SM)
 	{
+		// origen en el tapón: la caña se extiende hacia abajo (eje Z) y la pala hacia un lado del eje horizontal más largo
 		const FBoxSphereBounds B = SM->GetBounds();
 		if (B.BoxExtent.Z > 1.0)
 		{
 			StickMesh->SetStaticMesh(SM);
 			StickMesh->SetMaterial(0, PP::ColorMID(this, FLinearColor(.75f, .55f, .3f), .4f));
-			StickShaftSign = B.Origin.Z < 0.0 ? -1.f : 1.f;     // hacia dónde se extiende la caña desde el tapón
-			StickToeSign = B.Origin.X >= 0.0 ? 1.f : -1.f;      // hacia dónde mira la pala
+			StickTipLocal = FVector(0.0, 0.0, B.Origin.Z < 0.0 ? -1.0 : 1.0);
+			const bool bBladeX = B.BoxExtent.X >= B.BoxExtent.Y;
+			StickToeLocal = bBladeX ? FVector(B.Origin.X >= 0.0 ? 1.0 : -1.0, 0.0, 0.0) : FVector(0.0, B.Origin.Y >= 0.0 ? 1.0 : -1.0, 0.0);
 			StickScale = float(123.0 / (2.0 * B.BoxExtent.Z));  // largo final: 1,23 m aunque el importador escale distinto
 			bRealStick = true;
 		}

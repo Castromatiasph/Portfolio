@@ -136,8 +136,8 @@ private:
 	/** Diagnóstico: dibuja esferas en cabeza, manos y pies del esqueleto y muestra datos del modelo en pantalla. */
 	UPROPERTY(EditAnywhere, Category = "Debug") bool bDebugRig = true;
 	float DbgT = 0.f;
-	bool bRealSkate = false; float SkateScale = 1.f;   // patín real (SM_PatinReal)
-	bool bRealStick = false; float StickShaftSign = -1.f, StickToeSign = 1.f, StickScale = 1.f;   // palo real (SM_Palo)
+	bool bRealSkate = false; float SkateScale = 1.f, SkateYaw = 0.f; FVector SkateToeLocal = FVector::XAxisVector;   // patín real (SM_PatinReal)
+	bool bRealStick = false; float StickScale = 1.f; FVector StickTipLocal = -FVector::ZAxisVector, StickToeLocal = FVector::XAxisVector;   // palo real (SM_Palo)
 	FPPVec CamLookG = FPPVec(0.f, .62f, .4f);
 	FPPVec CamPosG = FPPVec::ZeroVector;
 	FPPVec2 AimStick = FPPVec2::ZeroVector;
