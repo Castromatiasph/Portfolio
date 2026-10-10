@@ -7,11 +7,22 @@
 #include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "Kismet/GameplayStatics.h"
+#include "Sound/SoundBase.h"
 #include "InputCoreTypes.h"
 #include "EngineUtils.h"
 #include "GameFramework/PlayerStart.h"
 
 using namespace PP;
+
+const APPGameMode::FChallenge APPGameMode::Challenges[7] = {
+	{ TEXT("Gol arriba"), TEXT("Meté un gol por arriba de la mitad del arco"), 3, 0 },
+	{ TEXT("Gol de arrastre"), TEXT("Meté un gol de arrastre (clic derecho o F)"), 3, 0 },
+	{ TEXT("Picada"), TEXT("Meté un gol de picada (Shift al soltar el tiro)"), 3, 0 },
+	{ TEXT("Amague y gol"), TEXT("Amagá con Q o E y meté el gol en menos de un segundo"), 3, 0 },
+	{ TEXT("Cañonazo"), TEXT("Meté un gol a más de 70 km/h"), 3, 0 },
+	{ TEXT("Al ángulo"), TEXT("Meté un gol en uno de los ángulos de arriba"), 4, 0 },
+	{ TEXT("Tres seguidos"), TEXT("Meté tres goles seguidos sin errar"), 6, 3 },
+};
 
 APPGameMode::APPGameMode()
 {
@@ -26,10 +37,9 @@ void APPGameMode::BeginPlay()
 	UWorld* W = GetWorld();
 	for (TActorIterator<APPBall> It(W); It; ++It) { Ball = *It; break; }
 	for (TActorIterator<APPGoalkeeper> It(W); It; ++It) { Gk = *It; break; }
+	for (TActorIterator<APPArena> It(W); It; ++It) { Arena = *It; break; }
 	FActorSpawnParameters P; P.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
-	bool bHasArena = false;
-	for (TActorIterator<APPArena> It(W); It; ++It) { bHasArena = true; break; }
-	if (!bHasArena) W->SpawnActor<APPArena>(FVector::ZeroVector, FRotator::ZeroRotator, P);
+	if (!Arena) Arena = W->SpawnActor<APPArena>(FVector::ZeroVector, FRotator::ZeroRotator, P);
 	if (!Ball) Ball = W->SpawnActor<APPBall>(FVector::ZeroVector, FRotator::ZeroRotator, P);
 	if (!Gk) Gk = W->SpawnActor<APPGoalkeeper>(FVector::ZeroVector, FRotator::ZeroRotator, P);
 	if (APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0))
@@ -38,8 +48,11 @@ void APPGameMode::BeginPlay()
 		FInputModeGameAndUI Mode; Mode.SetHideCursorDuringCapture(false); Mode.SetLockMouseToViewportBehavior(EMouseLockMode::LockOnCapture);
 		PC->SetInputMode(Mode);
 	}
+	if (Arena) Arena->ApplyQuality(Quality);
+	// ambiente de estadio en loop (si importaste Audio con setup_level.py)
+	if (USoundBase* Amb = LoadObject<USoundBase>(nullptr, TEXT("/Game/Audio/S_Ambiente.S_Ambiente"))) UGameplayStatics::SpawnSound2D(this, Amb, .35f);
 	State = EPPState::Menu;
-	Hint = TEXT("1 Práctica · 2 Tanda   3 Penal · 4 Libre   5 Infantiles · 6 Primera · 7 Mundial   8 Estilo del arquero   Enter: jugar");
+	Hint = TEXT("1-5 modo · 6 penal/libre · 7 nivel · 8 arquero · 9 calidad · Enter: jugar");
 }
 
 AActor* APPGameMode::ChoosePlayerStart_Implementation(AController* Player)
@@ -54,9 +67,39 @@ void APPGameMode::ResolveActors()
 	if (!Shooter) Shooter = Cast<APPShooter>(UGameplayStatics::GetPlayerPawn(this, 0));
 }
 
+void APPGameMode::PlaySfx(const FString& Name, float Volume, const FVector& Loc)
+{
+	const FName Key(*Name);
+	TObjectPtr<USoundBase>* F = Sounds.Find(Key);
+	USoundBase* S = nullptr;
+	if (F) S = F->Get();
+	else
+	{
+		S = LoadObject<USoundBase>(nullptr, *FString::Printf(TEXT("/Game/Audio/%s.%s"), *Name, *Name));
+		Sounds.Add(Key, S);
+	}
+	if (S) UGameplayStatics::PlaySoundAtLocation(this, S, Loc, FMath::Clamp(Volume, 0.f, 2.f));
+}
+
 void APPGameMode::Fire(const TCHAR* Name, float Param, const FPPVec* G)
 {
-	OnPPEvent(FName(Name), Param, G ? ToUE(*G) : (Ball ? ToUE(Ball->Pos) : FVector::ZeroVector));
+	const FVector Loc = G ? ToUE(*G) : (Ball ? ToUE(Ball->Pos) : FVector::ZeroVector);
+	const FString N(Name);
+	if (N == TEXT("hit")) PlaySfx(TEXT("S_Hit"), .5f + .6f * Param, Loc);
+	else if (N == TEXT("bounce")) PlaySfx(TEXT("S_Bounce"), FMath::Min(1.f, Param / 6.f), Loc);
+	else if (N == TEXT("board")) PlaySfx(TEXT("S_Board"), FMath::Min(1.f, Param / 8.f), Loc);
+	else if (N == TEXT("post")) PlaySfx(TEXT("S_Post"), 1.f, Loc);
+	else if (N == TEXT("net")) PlaySfx(TEXT("S_Net"), .7f + Param, Loc);
+	else if (N == TEXT("save")) PlaySfx(TEXT("S_Save"), 1.f, Loc);
+	else if (N == TEXT("goal") || N == TEXT("cheer")) PlaySfx(TEXT("S_Cheer"), .9f, Loc);
+	else if (N == TEXT("groan")) PlaySfx(TEXT("S_Groan"), .8f, Loc);
+	else if (N == TEXT("whistle")) PlaySfx(TEXT("S_Whistle"), .7f, Loc);
+	if (Arena)
+	{
+		if (N == TEXT("goal")) { Arena->Cheer(); Arena->Confetti(); }
+		else if (N == TEXT("cheer")) Arena->Cheer(1.8f);
+	}
+	OnPPEvent(FName(Name), Param, Loc);
 }
 
 FPPVec APPGameMode::StartPos() const
@@ -71,6 +114,18 @@ float APPGameMode::EstimatedError(float P) const
 {
 	const FPPVec S = Ball ? Ball->Pos : FPPVec(0, 0, PP::SpotZ);
 	return (.03f + P * P * P * .11f) * FMath::Clamp(Hypot(S.X, S.Z) / PP::SpotZ, .8f, 2.4f);
+}
+
+EPPCamera APPGameMode::NextCamera(EPPCamera Cur) const
+{
+	if (Format == EPPFormat::Arquero) return Cur == EPPCamera::Arquero ? EPPCamera::TV : Cur == EPPCamera::TV ? EPPCamera::Jugador : EPPCamera::Arquero;
+	return Cur == EPPCamera::Jugador ? EPPCamera::TV : Cur == EPPCamera::TV ? EPPCamera::Primera : EPPCamera::Jugador;
+}
+
+void APPGameMode::CycleQuality()
+{
+	Quality = EPPQuality((int32(Quality) + 1) % 3);
+	if (Arena) Arena->ApplyQuality(Quality);
 }
 
 FString APPGameMode::ShotName() const
@@ -93,22 +148,26 @@ FString APPGameMode::ZoneName(float X, float Y) const
 		X < -.3f ? TEXT(", a la izquierda") : X > .3f ? TEXT(", a la derecha") : TEXT(", al medio"));
 }
 
-void APPGameMode::SetFlash(const FString& Big, const FString& Small, int32 Cls) { FlashBig = Big; FlashSmall = Small; FlashClass = Cls; }
+void APPGameMode::SetFlash(const FString& Big, const FString& Small, int32 Cls, float Seconds) { FlashBig = Big; FlashSmall = Small; FlashClass = Cls; FlashT = Seconds; }
 
 // ------------------------------------------------------------------ partido
 void APPGameMode::StartMatch()
 {
 	ResolveActors();
-	Results.Reset(); Rival.Reset(); BestKmh = 0; bPaused = false;
+	Results.Reset(); Rival.Reset(); DuelA.Reset(); DuelB.Reset(); bDuelA = true; BestKmh = 0; bPaused = false;
+	ChI = 0; ChTries = 0; ChStreak = 0; ChTotal = 0; ChStars.Reset();
+	Gk->bUser = (Format == EPPFormat::Arquero || Format == EPPFormat::Duelo);
 	Gk->StyleSel = GoalieStyle; Gk->PickStyle(); Gk->Diff = FPPDiff::Make(Difficulty);
+	Shooter->CamMode = Format == EPPFormat::Arquero ? EPPCamera::Arquero : EPPCamera::Jugador;
+	Shooter->bCamInit = false;
 	SetupPenalty();
 }
 
 void APPGameMode::ToMenu()
 {
 	State = EPPState::Menu; ClearFlash();
-	if (Shooter) { Shooter->Place(StartPos()); BallToShooter(); }
-	Hint = TEXT("1 Práctica · 2 Tanda   3 Penal · 4 Libre   5 Infantiles · 6 Primera · 7 Mundial   8 Estilo del arquero   Enter: jugar");
+	if (Shooter) { Shooter->Place(StartPos()); BallToShooter(); Shooter->CamMode = EPPCamera::Jugador; Shooter->bCamInit = false; }
+	Hint = TEXT("1-5 modo · 6 penal/libre · 7 nivel · 8 arquero · 9 calidad · Enter: jugar");
 }
 
 void APPGameMode::BallToShooter()
@@ -121,21 +180,37 @@ void APPGameMode::BallToShooter()
 void APPGameMode::SetupPenalty()
 {
 	ResolveActors();
-	ReboundCount = 0; bHasShot = false; bLaunched = false; ResultTimer = 0.f; LooseT = 0.f;
+	ReboundCount = 0; bHasShot = false; bLaunched = false; ResultTimer = 0.f; LooseT = 0.f; Rec.Reset();
 	Gk->StyleSel = GoalieStyle; Gk->Diff = FPPDiff::Make(Difficulty);
-	Gk->ResetForShot(true);
+	Gk->bUser = (Format == EPPFormat::Arquero || Format == EPPFormat::Duelo);
+	Gk->ResetForShot(!Gk->bUser);
+	Gk->In = FPPGkInput(); Gk->bOuting = false; Gk->UserExt = 0.f;
 	Shooter->Place(StartPos());
 	BallToShooter();
 	Shooter->Power = 0.f; Shooter->ChargeT = 0.f;
+	bAiActive = (Format == EPPFormat::Arquero);
+	if (bAiActive) { Ai = MakePlan(); AiT = 0.f; AiMove = FPPVec2::ZeroVector; }
 	State = EPPState::Aim;
 	ClearFlash();
-	Hint = TEXT("WASD patina · Q/E amagues · clic y tirar el mouse para atrás: golpe (Shift al soltar: picada, Ctrl: efecto) · clic derecho/F arrastre · V fuetazo · B revés · C cámara · R vuelve al punto");
+	switch (Format)
+	{
+	case EPPFormat::Arquero: Hint = TEXT("Mové el mouse para ubicarte y apuntar las manos · clic o Espacio: tirarte · Shift: salir por el área · clic derecho o E: palo · C: cámara"); break;
+	case EPPFormat::Duelo: Hint = FString::Printf(TEXT("Patea %s: WASD, mouse, Shift izq. picada, Ctrl izq. efecto · Ataja %s: flechas, Enter para tirarse, Shift der. salir, Ctrl der. palo"), *PlayerName(bDuelA), *PlayerName(!bDuelA)); break;
+	case EPPFormat::Desafio:
+	{
+		const FChallenge& C = Challenges[FMath::Min(ChI, 6)];
+		Hint = FString::Printf(TEXT("Desafío: %s."), C.Desc);
+		SetFlash(C.Name, C.Desc, 0, 1.8f);
+		break;
+	}
+	default: Hint = TEXT("WASD patina · Q/E amagues · clic y tirar el mouse para atrás: golpe (Shift al soltar: picada, Ctrl: efecto) · clic derecho/F arrastre · V fuetazo · B revés · C cámara · R vuelve al punto"); break;
+	}
 	Fire(TEXT("whistle"));
 }
 
 void APPGameMode::ResetToSpot()
 {
-	if (Format == EPPFormat::Practica && State != EPPState::Menu && State != EPPState::End && State != EPPState::Rival) SetupPenalty();
+	if (Format == EPPFormat::Practica && State != EPPState::Menu && State != EPPState::End && State != EPPState::Rival && State != EPPState::Replay) SetupPenalty();
 }
 
 void APPGameMode::TogglePause()
@@ -152,7 +227,6 @@ bool APPGameMode::Stealable() const
 // ------------------------------------------------------------------ tiros
 void APPGameMode::StartCharge()
 {
-	if (State == EPPState::Menu || State == EPPState::End) return;
 	if (State != EPPState::Aim) return;
 	State = EPPState::Charge;
 	Shooter->ChargeT = 0.f; Shooter->Power = 0.f; Shooter->PowerVis = 0.f;
@@ -231,7 +305,7 @@ void APPGameMode::Launch()
 	const int32 Kmh = FMath::RoundToInt(Ball->Vel.Size() * 3.6f);
 	BestKmh = FMath::Max(BestKmh, Kmh);
 
-	// el arquero lee el tiro
+	// el arquero de la máquina lee el tiro
 	const float Frac = (S.Z - Gk->PlaneZ()) / Dz;
 	const float SinceDeke = Time - Shooter->LastDekeTime;
 	const float Read = (.6f + .8f * P) * (K == EPPShotKind::Arrastre ? 1.6f : K == EPPShotKind::Fuetazo ? 1.45f : K == EPPShotKind::Reves ? 1.5f : 1.f)
@@ -240,12 +314,15 @@ void APPGameMode::Launch()
 	float PredX = (CurveA != 0.f ? S.X + Ball->Vel.X * Tt * Frac : S.X + (Tx - S.X) * Frac) + Gauss() * D.Noise * Read;
 	float PredY = Ty + Gauss() * D.Noise * .8f * Read;
 	float React = D.React * (.85f + FMath::FRand() * .3f) * (K == EPPShotKind::Arrastre ? 1.45f : K == EPPShotKind::Fuetazo ? 1.2f : K == EPPShotKind::Reves ? 1.25f : 1.f);
-	React *= GS.React;
-	PredX += Gauss() * D.Noise * (GS.Noise - 1.f);
-	// el que se tira temprano ya eligió un lado cuando el atacante levantó el palo
-	if (GS.bEarly && Gk->EarlySide && FMath::FRand() < .6f) { PredX = Gk->EarlySide * (.4f + FMath::FRand() * .3f); PredY = .15f + FMath::FRand() * .4f; React = .02f; }
-	else if (FMath::FRand() < FMath::Max(0.f, D.Guess + GS.Guess) * (SinceDeke < .7f ? 1.6f : 1.f))
-	{ PredX = (FMath::FRand() < .5f ? -1.f : 1.f) * (.35f + FMath::FRand() * .4f); PredY = .15f + FMath::FRand() * .85f; React = .06f; }
+	if (!Gk->bUser)
+	{
+		React *= GS.React;
+		PredX += Gauss() * D.Noise * (GS.Noise - 1.f);
+		// el que se tira temprano ya eligió un lado cuando el atacante levantó el palo
+		if (GS.bEarly && Gk->EarlySide && FMath::FRand() < .6f) { PredX = Gk->EarlySide * (.4f + FMath::FRand() * .3f); PredY = .15f + FMath::FRand() * .4f; React = .02f; }
+		else if (FMath::FRand() < FMath::Max(0.f, D.Guess + GS.Guess) * (SinceDeke < .7f ? 1.6f : 1.f))
+		{ PredX = (FMath::FRand() < .5f ? -1.f : 1.f) * (.35f + FMath::FRand() * .4f); PredY = .15f + FMath::FRand() * .85f; React = .06f; }
+	}
 	const float GTarget = FMath::Clamp(PredX * .55f, -.4f, .4f);
 	const int32 ReachSide = FMath::Abs(PredX - GTarget) < .18f ? 0 : (PredX - GTarget > 0.f ? 1 : -1);
 	// cada atajada sale distinta: velocidad para estirarse, cuánto adelanta las manos, cuánto se tumba y la técnica
@@ -259,6 +336,8 @@ void APPGameMode::Launch()
 	Shot.Kind = K; Shot.CurveAccel = CurveA; Shot.Tx = Tx; Shot.Ty = Ty; Shot.Kmh = Kmh;
 	Shot.PredX = PredX; Shot.PredY = PredY; Shot.React = React; Shot.GTarget = GTarget; Shot.ReachSide = ReachSide;
 	Shot.Ramp = D.Ramp * (.8f + R() * .45f); Shot.ReachZ = .26f + R() * .14f; Shot.Tilt = .75f + R() * .55f; Shot.Tech = Tech;
+	Shot.LaunchT = Time; Shot.bDeke = SinceDeke < 1.2f;
+	Shot.bGkEarly = (Format == EPPFormat::Arquero && Gk->Kneel > .6f);
 	bHasShot = true;
 	State = EPPState::Flight;
 	Fire(TEXT("hit"), P);
@@ -348,10 +427,25 @@ void APPGameMode::StepBall(float Dt)
 }
 
 // ------------------------------------------------------------------ resolución del tiro
+bool APPGameMode::ChallengeOk(int32 I, float Gx, float Gy, EPPShotKind K, int32 Kmh, bool bDeke) const
+{
+	switch (I)
+	{
+	case 0: return Gy > .55f;
+	case 1: return K == EPPShotKind::Arrastre;
+	case 2: return K == EPPShotKind::Picada;
+	case 3: return bDeke;
+	case 4: return Kmh > 70;
+	case 5: return Gy > .7f && FMath::Abs(Gx) > .5f;
+	default: return true;
+	}
+}
+
 void APPGameMode::Settle(EPPOutcome Kind, const FString& Detail)
 {
 	if (Shot.Outcome != EPPOutcome::None) return;
 	Shot.Outcome = Kind;
+	if (Kind == EPPOutcome::Goal) Shot.GoalT = Time;
 	if (Format == EPPFormat::Practica)
 	{
 		// práctica: se cuenta el tiro y la bocha sigue viva hasta que el usuario aprieta R
@@ -371,30 +465,87 @@ void APPGameMode::Settle(EPPOutcome Kind, const FString& Detail)
 
 void APPGameMode::Finalize(EPPOutcome Kind, const FString& Detail)
 {
-	Shot.Outcome = Kind; State = EPPState::Flight; Results.Add(Kind); ResultTimer = 2.8f;
+	Shot.Outcome = Kind; if (Kind == EPPOutcome::Goal && Shot.GoalT <= 0.f) Shot.GoalT = Time;
+	State = EPPState::Flight; Results.Add(Kind); ResultTimer = 2.8f;
 	const FString Kn = ShotName();
+	const FString Full = FString::Printf(TEXT("%s · %d km/h · %s"), *Kn, Shot.Kmh, *ZoneName(Shot.Tx, Shot.Ty));
+
+	if (Format == EPPFormat::Duelo)
+	{
+		(bDuelA ? DuelA : DuelB).Add(Kind);
+		const FString Sh = PlayerName(bDuelA), GkN = PlayerName(!bDuelA);
+		switch (Kind)
+		{
+		case EPPOutcome::Goal: SetFlash(FString::Printf(TEXT("¡Gol del %s!"), *Sh), Full, 1); Fire(TEXT("goal")); Shooter->Shake = 1.f; break;
+		case EPPOutcome::Save: SetFlash(FString::Printf(TEXT("¡Atajó el %s!"), *GkN), Shot.bCaught ? FString(TEXT("Se la quedó con el guante")) : FString::Printf(TEXT("Con %s"), *Detail), 2); Fire(TEXT("save")); Fire(TEXT("groan")); break;
+		case EPPOutcome::Post: SetFlash(TEXT("¡Palo!"), Detail, 2); Fire(TEXT("groan")); break;
+		default: SetFlash(TEXT("Afuera"), Detail, 2); Fire(TEXT("groan")); break;
+		}
+		return;
+	}
+	if (Format == EPPFormat::Desafio)
+	{
+		const int32 Ci = FMath::Min(ChI, 6);
+		const FChallenge& C = Challenges[Ci];
+		ChTotal++;
+		const bool bGood = Kind == EPPOutcome::Goal && ChallengeOk(Ci, Shot.Gx, Shot.Gy, Shot.Kind, Shot.Kmh, Shot.bDeke);
+		if (C.Streak) { if (Kind == EPPOutcome::Goal) ChStreak++; else ChStreak = 0; }
+		ChTries++;
+		if (bGood && (!C.Streak || ChStreak >= C.Streak))
+		{
+			const int32 St = ChTries <= FMath::CeilToInt(C.Tries / 3.f) ? 3 : ChTries <= FMath::CeilToInt(C.Tries * 2.f / 3.f) ? 2 : 1;
+			ChStars.Add(St); ChI++; ChTries = 0; ChStreak = 0; Shot.bChDone = true;
+			FString Stars; for (int s = 0; s < 3; s++) Stars += s < St ? TEXT("*") : TEXT("-");
+			SetFlash(TEXT("¡Desafío cumplido!"), FString::Printf(TEXT("%s · %s"), C.Name, *Stars), 1); Fire(TEXT("goal"));
+		}
+		else if (Kind == EPPOutcome::Goal && C.Streak) { SetFlash(TEXT("¡Gol!"), FString::Printf(TEXT("Llevás %d de %d seguidos"), ChStreak, C.Streak), 1); Fire(TEXT("cheer")); }
+		else if (ChTries >= C.Tries)
+		{
+			ChTries = 0; ChStreak = 0;
+			SetFlash(Kind == EPPOutcome::Goal ? TEXT("Gol, pero no vale") : TEXT("No lo lograste"), FString::Printf(TEXT("Se te acabaron los intentos. Volvés a empezar «%s»"), C.Name), 2); Fire(TEXT("groan"));
+		}
+		else
+		{
+			const TCHAR* Big = Kind == EPPOutcome::Goal ? TEXT("Gol, pero no vale") : Kind == EPPOutcome::Save ? TEXT("¡Atajó!") : Kind == EPPOutcome::Post ? TEXT("¡Palo!") : TEXT("Afuera");
+			SetFlash(Big, FString::Printf(TEXT("%s. Te quedan %d"), C.Desc, C.Tries - ChTries), 2);
+			Fire(Kind == EPPOutcome::Goal ? TEXT("cheer") : TEXT("groan"));
+		}
+		return;
+	}
+	if (Format == EPPFormat::Arquero)
+	{
+		switch (Kind)
+		{
+		case EPPOutcome::Goal: SetFlash(Shot.bGkEarly ? TEXT("Te tiraste antes") : TEXT("Gol del rival"), Shot.bGkEarly ? FString::Printf(TEXT("Te ganó el palo de arriba · %s"), *Kn) : Full, 2); Fire(TEXT("groan")); break;
+		case EPPOutcome::Save: SetFlash(TEXT("¡Atajaste!"), Shot.bCaught ? FString::Printf(TEXT("Te la quedaste con el guante · %d km/h"), Shot.Kmh) : FString::Printf(TEXT("Con %s · %d km/h"), *Detail, Shot.Kmh), 1); Fire(TEXT("save")); Fire(TEXT("cheer")); break;
+		case EPPOutcome::Post: SetFlash(TEXT("¡Palo!"), TEXT("Te salvó el palo"), 1); Fire(TEXT("cheer")); break;
+		default: SetFlash(TEXT("Afuera"), TEXT("El rival la tiró desviada"), 1); Fire(TEXT("cheer")); break;
+		}
+		return;
+	}
 	switch (Kind)
 	{
-	case EPPOutcome::Goal: SetFlash(ReboundCount > 0 ? TEXT("¡Gol de rebote!") : TEXT("¡Gol!"), FString::Printf(TEXT("%s · %d km/h · %s"), *Kn, Shot.Kmh, *ZoneName(Shot.Tx, Shot.Ty)), 1); Fire(TEXT("goal")); Shooter->Shake = 1.f; break;
+	case EPPOutcome::Goal: SetFlash(ReboundCount > 0 ? TEXT("¡Gol de rebote!") : TEXT("¡Gol!"), Full, 1); Fire(TEXT("goal")); Shooter->Shake = 1.f; break;
 	case EPPOutcome::Save: SetFlash(TEXT("¡Atajó!"), Shot.bCaught ? FString(TEXT("Se la quedó con el guante")) : FString::Printf(TEXT("La sacó con %s"), *Detail), 2); Fire(TEXT("save")); Fire(TEXT("groan")); break;
 	case EPPOutcome::Post: SetFlash(TEXT("¡Palo!"), Detail, 2); Fire(TEXT("groan")); break;
 	default: SetFlash(TEXT("Afuera"), Detail, 2); Fire(TEXT("groan")); break;
 	}
 }
 
-void APPGameMode::DoSteal()
+void APPGameMode::DoSteal(bool bByUser)
 {
 	bLaunched = true;
 	FPPVec Dir = Ball->Pos - FPPVec(Gk->Pos.X, 0.f, Gk->Pos.Y); Dir.Y = 0.f; Dir = Dir.GetSafeNormal();
 	const float Sp = 3.2f + FMath::FRand() * 1.6f;
 	Shot = FPPShot();
-	Shot.Kmh = FMath::RoundToInt(Sp * 3.6f); Shot.bGkChecked = true; Shot.bLineChecked = true; Shot.NoPick = .8f;
+	Shot.Kmh = FMath::RoundToInt(Sp * 3.6f); Shot.bGkChecked = true; Shot.bLineChecked = true; Shot.NoPick = .8f; Shot.LaunchT = Time;
 	bHasShot = true;
 	Ball->Vel = FPPVec(Dir.X * Sp + (FMath::FRand() - .5f) * .8f, .15f, FMath::Max(.6f, Dir.Z) * Sp);
 	Ball->Spin = FPPVec::ZeroVector;
 	Gk->PokeAlpha = 0.f;
-	Shot.Outcome = EPPOutcome::Save; Results.Add(EPPOutcome::Save);
 	Fire(TEXT("save"));
+	if (Format == EPPFormat::Duelo || Format == EPPFormat::Desafio) { Finalize(EPPOutcome::Save, TEXT("el palo")); return; }
+	Shot.Outcome = EPPOutcome::Save; Results.Add(EPPOutcome::Save);
 	if (Format == EPPFormat::Practica)
 	{
 		State = EPPState::Loose; LooseT = 0.f; Shot.PrevZ = Ball->Pos.Z;
@@ -402,10 +553,11 @@ void APPGameMode::DoSteal()
 		return;
 	}
 	State = EPPState::Flight; ResultTimer = 2.6f;
-	SetFlash(TEXT("¡Te la sacó!"), TEXT("El arquero salió con el palo"), 2); Fire(TEXT("groan"));
+	if (Format == EPPFormat::Arquero) { SetFlash(TEXT("¡Se la sacaste!"), TEXT("Le robaste la bocha con el palo"), 1); Fire(TEXT("cheer")); }
+	else { SetFlash(TEXT("¡Te la sacó!"), TEXT("El arquero salió con el palo"), 2); Fire(TEXT("groan")); }
 }
 
-// ------------------------------------------------------------------ tanda y fin
+// ------------------------------------------------------------------ tanda, duelo y fin
 bool APPGameMode::Decided() const
 {
 	const int32 N = Results.Num(), M = Rival.Num(), A = GoalsOf(Results), B = GoalsOfRival();
@@ -413,12 +565,41 @@ bool APPGameMode::Decided() const
 	return N == M && A != B;
 }
 
+bool APPGameMode::DuelDecided() const
+{
+	const int32 N = DuelA.Num(), M = DuelB.Num(), A = GoalsOf(DuelA), B = GoalsOf(DuelB);
+	if (N <= 5 && M <= 5) { if (A + (5 - N) < B || B + (5 - M) < A) return true; if (N < 5 || M < 5) return false; return A != B; }
+	return N == M && A != B;
+}
+
 void APPGameMode::NextTurn()
 {
-	if (Format == EPPFormat::Tanda)
+	switch (Format)
 	{
+	case EPPFormat::Tanda:
 		if (Decided()) { EndMatch(); return; }
 		if (Rival.Num() < Results.Num()) { RivalShot(); return; }
+		break;
+	case EPPFormat::Arquero:
+		if (Results.Num() >= 5) { EndMatch(); return; }
+		break;
+	case EPPFormat::Desafio:
+		if (ChI >= 7) { EndMatch(); return; }
+		break;
+	case EPPFormat::Duelo:
+	{
+		if (DuelDecided()) { EndMatch(); return; }
+		const bool bNextA = DuelA.Num() <= DuelB.Num();
+		if (bNextA != bDuelA)
+		{
+			bDuelA = bNextA; State = EPPState::Swap; SwapT = 2.4f;
+			SetFlash(FString::Printf(TEXT("Patea el %s"), *PlayerName(bDuelA)), TEXT("Cambien de lugar: mouse y WASD para patear, flechas y Enter para atajar"), 0);
+			Fire(TEXT("whistle"));
+			return;
+		}
+		break;
+	}
+	default: break;
 	}
 	SetupPenalty();   // práctica: siempre vuelve al punto
 }
@@ -449,19 +630,45 @@ void APPGameMode::StepRival(float Dt)
 
 void APPGameMode::EndMatch()
 {
-	State = EPPState::End;
+	State = EPPState::End; bAiActive = false;
 	const int32 G = GoalsOf(Results);
 	auto C = [&](EPPOutcome K) { int32 N = 0; for (EPPOutcome O : Results) if (O == K) N++; return N; };
-	if (Format == EPPFormat::Tanda)
+	FString Big, Small; int32 Cls = 1;
+	switch (Format)
+	{
+	case EPPFormat::Tanda:
 	{
 		const int32 B = GoalsOfRival(); const bool bSd = Results.Num() > 5;
-		SetFlash(FString::Printf(TEXT("%d a %d"), G, B),
-			G > B ? (bSd ? TEXT("Ganaste en la muerte súbita. Nervios de acero.") : TEXT("Ganaste la tanda. El equipo te sale a abrazar."))
-			      : (bSd ? TEXT("Perdiste en la muerte súbita. Por un tiro.") : TEXT("Perdiste la tanda. Toca revancha.")), G > B ? 1 : 2);
+		Big = FString::Printf(TEXT("%d a %d"), G, B);
+		Small = G > B ? (bSd ? TEXT("Ganaste en la muerte súbita. Nervios de acero.") : TEXT("Ganaste la tanda. El equipo te sale a abrazar."))
+		              : (bSd ? TEXT("Perdiste en la muerte súbita. Por un tiro.") : TEXT("Perdiste la tanda. Toca revancha."));
+		Cls = G > B ? 1 : 2; break;
 	}
-	else SetFlash(FString::Printf(TEXT("%d goles"), G), TEXT(""), 1);
-	Hint = FString::Printf(TEXT("Goles %d · Atajadas %d · Palos %d · Afuera %d%s · Tiro más fuerte: %d km/h · Enter: volver al menú"),
-		G, C(EPPOutcome::Save), C(EPPOutcome::Post), C(EPPOutcome::Miss), TEXT(""), BestKmh);
+	case EPPFormat::Arquero:
+	{
+		const int32 Sv = 5 - G;
+		static const TCHAR* M[6] = { TEXT("Te hicieron todos. Toca revancha bajo los palos."), TEXT("Una atajada. El rival ganó el duelo."), TEXT("Dos atajadas. Se te escaparon varias."), TEXT("Tres de cinco: sostuviste al equipo."), TEXT("Cuatro atajadas. Sos la figura del partido."), TEXT("Cinco de cinco. Valla invicta.") };
+		Big = FString::Printf(TEXT("%d de 5 atajadas"), Sv); Small = M[FMath::Clamp(Sv, 0, 5)]; Cls = Sv >= 3 ? 1 : 2; break;
+	}
+	case EPPFormat::Desafio:
+	{
+		int32 St = 0; for (int32 S : ChStars) St += S;
+		Big = FString::Printf(TEXT("%d de 21 estrellas"), St);
+		Small = St >= 21 ? TEXT("Todos con tres estrellas. Pateás como un crack.") : St >= 14 ? TEXT("Muy bien. Probá de nuevo para sacar más estrellas.") : FString::Printf(TEXT("Los completaste en %d tiros. Con práctica salen más estrellas."), ChTotal);
+		break;
+	}
+	case EPPFormat::Duelo:
+	{
+		const int32 Ga = GoalsOf(DuelA), Gb = GoalsOf(DuelB);
+		Big = FString::Printf(TEXT("%d a %d"), Ga, Gb);
+		Small = Ga > Gb ? TEXT("Ganó el Jugador 1. Revancha cambiando de lugar.") : TEXT("Ganó el Jugador 2. Revancha cambiando de lugar.");
+		break;
+	}
+	default: Big = FString::Printf(TEXT("%d goles"), G); break;
+	}
+	SetFlash(Big, Small, Cls);
+	Hint = FString::Printf(TEXT("Goles %d · Atajadas %d · Palos %d · Afuera %d · Tiro más fuerte: %d km/h · Enter: volver al menú"),
+		G, C(EPPOutcome::Save), C(EPPOutcome::Post), C(EPPOutcome::Miss), BestKmh);
 }
 
 // ------------------------------------------------------------------ menú
@@ -470,19 +677,20 @@ void APPGameMode::MenuInput()
 	APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);
 	if (!PC) return;
 	auto Hit = [&](const FKey& K) { return PC->WasInputKeyJustPressed(K); };
+	if (State == EPPState::End) { if (Hit(EKeys::Enter) || Hit(EKeys::SpaceBar)) ToMenu(); return; }
 	if (Hit(EKeys::One)) Format = EPPFormat::Practica;
 	if (Hit(EKeys::Two)) Format = EPPFormat::Tanda;
-	if (Hit(EKeys::Three)) { ShotMode = EPPShotMode::Penal; if (Shooter) { Shooter->Place(StartPos()); BallToShooter(); } }
-	if (Hit(EKeys::Four)) { ShotMode = EPPShotMode::Libre; if (Shooter) { Shooter->Place(StartPos()); BallToShooter(); } }
-	if (Hit(EKeys::Five)) Difficulty = EPPDifficulty::Infantiles;
-	if (Hit(EKeys::Six)) Difficulty = EPPDifficulty::Primera;
-	if (Hit(EKeys::Seven)) Difficulty = EPPDifficulty::Mundial;
+	if (Hit(EKeys::Three)) Format = EPPFormat::Arquero;
+	if (Hit(EKeys::Four)) Format = EPPFormat::Desafio;
+	if (Hit(EKeys::Five)) Format = EPPFormat::Duelo;
+	if (Hit(EKeys::Six)) { ShotMode = ShotMode == EPPShotMode::Penal ? EPPShotMode::Libre : EPPShotMode::Penal; if (Shooter) { Shooter->Place(StartPos()); BallToShooter(); } }
+	if (Hit(EKeys::Seven)) Difficulty = EPPDifficulty((int32(Difficulty) + 1) % 3);
 	if (Hit(EKeys::Eight)) GoalieStyle = EPPGKStyle((int32(GoalieStyle) + 1) % 4);
-	if (State == EPPState::End) { if (Hit(EKeys::Enter) || Hit(EKeys::SpaceBar)) ToMenu(); return; }
+	if (Hit(EKeys::Nine)) CycleQuality();
 	if (Hit(EKeys::Enter) || Hit(EKeys::SpaceBar) || Hit(EKeys::Gamepad_Special_Right)) StartMatch();
 }
 
-// ------------------------------------------------------------------ bucle principal
+// ------------------------------------------------------------------ pasos por estado
 void APPGameMode::StepAim(float Dt)
 {
 	// amague lateral del palo
@@ -506,7 +714,7 @@ void APPGameMode::StepAim(float Dt)
 void APPGameMode::StepCharge(float Dt)
 {
 	Shooter->ChargeT += Dt;
-	if (!Shooter->bPullHeld) Shooter->Power = FMath::Min(1.f, Shooter->Power + Dt * .85f);   // teclado / joystick: carga por tiempo
+	if (!Shooter->bPullHeld && !bAiActive) Shooter->Power = FMath::Min(1.f, Shooter->Power + Dt * .85f);   // teclado / joystick: carga por tiempo
 	Shooter->PowerVis = FMath::Lerp(Shooter->PowerVis, Shooter->Power, PowDt(.0004f, Dt));
 	Shooter->SetPose(FPPPose::Lerp(Shooter->ContactPose, APPShooter::Back(), Smooth(Shooter->PowerVis)));
 	const FPPVec Prev = Ball->Pos; Ball->Pos = Shooter->BallAtPress(); Ball->RollBy(Ball->Pos - Prev);
@@ -533,7 +741,11 @@ void APPGameMode::StepFlight(float Dt)
 	if (Shot.Outcome != EPPOutcome::None && State == EPPState::Flight)
 	{
 		ResultTimer -= Dt;
-		if (ResultTimer <= 0.f) NextTurn();
+		if (ResultTimer <= 0.f)
+		{
+			const bool bWant = (Format == EPPFormat::Desafio) ? Shot.bChDone : (Shot.Outcome == (Format == EPPFormat::Arquero ? EPPOutcome::Save : EPPOutcome::Goal));
+			if (!(bWant && StartReplay())) NextTurn();
+		}
 	}
 }
 
@@ -562,12 +774,12 @@ void APPGameMode::StepLoose(float Dt)
 	// si la bocha cruza la línea entre los palos después del rebote, es gol
 	if (Shot.PrevZ > 0.f && B.Z <= 0.f && FMath::Abs(B.X) < PostHalf - BallR && B.Y < BarH - BallR && Shot.Outcome != EPPOutcome::Goal)
 	{
-		Shot.bInGoal = true; Shot.Outcome = EPPOutcome::Goal; ResultTimer = 2.6f;
+		Shot.bInGoal = true; Shot.Outcome = EPPOutcome::Goal; Shot.GoalT = Time; ResultTimer = 2.6f;
 		if (Results.Num()) Results.Last() = EPPOutcome::Goal;
 		SetFlash(TEXT("¡Gol!"), TEXT("Entró después del rebote"), 1); Fire(TEXT("goal"));
 	}
 	Shot.PrevZ = B.Z;
-	if (Shot.Outcome == EPPOutcome::Goal) { ResultTimer -= Dt; if (ResultTimer <= 0.f) SetupPenalty(); return; }
+	if (Shot.Outcome == EPPOutcome::Goal) { ResultTimer -= Dt; if (ResultTimer <= 0.f && !StartReplay()) SetupPenalty(); return; }
 	const bool bInNet = B.Z < 0.f && B.Z > -1.f && FMath::Abs(B.X) < PostHalf + .05f;
 	// el arquero se tira encima de la bocha si queda cerca y lenta
 	if (!bInNet && !(Shot.NoCatch > 0.f) && Sp < 1.6f && B.Y < .2f && FMath::Abs(B.X - Gk->Pos.X) < .5f && B.Z < Gk->Pos.Y + .5f && B.Z > -.05f)
@@ -579,22 +791,201 @@ void APPGameMode::StepLoose(float Dt)
 	{
 		ReboundCount++; State = EPPState::Aim; bHasShot = false; bLaunched = false;
 		Ball->Vel = FPPVec::ZeroVector; Ball->Spin = FPPVec::ZeroVector;
-		SetFlash(TEXT("¡La tenés!"), TEXT("Tirá de nuevo · R para volver al punto"), 1);
+		SetFlash(TEXT("¡La tenés!"), TEXT("Tirá de nuevo · R para volver al punto"), 1, .9f);
 	}
 }
 
+// ------------------------------------------------------------------ rival de la máquina (Atajá vos)
+FPPAiPlan APPGameMode::MakePlan() const
+{
+	struct FL { float P0, P1, Run, Deke, Hi; };
+	FL L{ .55f, .85f, .5f, .35f, .45f };
+	if (Difficulty == EPPDifficulty::Infantiles) L = FL{ .35f, .6f, .25f, .1f, .3f };
+	else if (Difficulty == EPPDifficulty::Mundial) L = FL{ .72f, 1.f, .75f, .6f, .55f };
+	FPPAiPlan P;
+	const float R = FMath::FRand();
+	P.Kind = R < .2f ? EPPShotKind::Arrastre : R < .3f ? EPPShotKind::Picada : R < .45f ? EPPShotKind::Fuetazo : R < .55f ? EPPShotKind::Reves : EPPShotKind::Golpe;
+	const float Side = FMath::FRand() < .5f ? -1.f : 1.f;
+	const bool bHi = FMath::FRand() < L.Hi;
+	P.bRun = FMath::FRand() < L.Run;
+	const float StartZ = StartPos().Z;
+	P.Wait = .9f + FMath::FRand() * 1.3f;
+	P.StopZ = P.bRun ? StartZ - (1.f + FMath::FRand() * (ShotMode == EPPShotMode::Libre ? 3.f : 1.6f)) : StartZ;
+	P.bDeke = FMath::FRand() < L.Deke; P.DekeAt = .4f + FMath::FRand() * .5f; P.Weave = FMath::FRand() * 6.f;
+	P.Tx = Side * (.3f + FMath::FRand() * .5f);
+	P.Ty = P.Kind == EPPShotKind::Picada ? .85f + FMath::FRand() * .15f : bHi ? .65f + FMath::FRand() * .3f : .08f + FMath::FRand() * .35f;
+	P.Power = L.P0 + FMath::FRand() * (L.P1 - L.P0);
+	P.bCurve = FMath::FRand() < .25f; P.bFake = FMath::FRand() < L.Deke * .7f;
+	return P;
+}
+
+void APPGameMode::StepAI(float Dt)
+{
+	AiT += Dt; AiMove = FPPVec2::ZeroVector;
+	FPPAiPlan& Pl = Ai;
+	const FPPVec P = Shooter->GamePos;
+	if (State == EPPState::Aim)
+	{
+		Shooter->SweepT = FMath::Sin(AiT * 2.2f + Pl.Weave) * .25f;
+		if (AiT < Pl.Wait) return;
+		if (Pl.bRun && P.Z > Pl.StopZ)
+		{
+			AiMove.Y = 1.f; AiMove.X = FMath::Sin(AiT * 2.6f + Pl.Weave) * .55f;
+			if (Pl.bDeke && !Pl.bDekeDone && (StartPos().Z - P.Z) > (StartPos().Z - Pl.StopZ) * Pl.DekeAt)
+			{ Pl.bDekeDone = true; Shooter->DekeDir = FMath::FRand() < .5f ? 1 : -1; Shooter->DekeT = DekeDuration; Shooter->LastDekeTime = Time; }
+			return;
+		}
+		// si el arquero se tiró antes de tiempo, espera un instante y la pone arriba del otro lado
+		if (Gk->In.bDown && !Pl.bPunished)
+		{
+			Pl.bPunished = true; Pl.HoldT = .3f + FMath::FRand() * .25f; Pl.Tx = (Gk->Pos.X > 0.f ? -1.f : 1.f) * (.55f + FMath::FRand() * .2f); Pl.Ty = .72f + FMath::FRand() * .2f;
+			if (Pl.Kind == EPPShotKind::Arrastre || Pl.Kind == EPPShotKind::Reves) Pl.Kind = EPPShotKind::Golpe;
+		}
+		if (Pl.HoldT > 0.f) { Pl.HoldT -= Dt; return; }
+		if (!Pl.bLobChecked && Gk->Pos.Y > 1.6f)
+		{
+			Pl.bLobChecked = true;
+			const float R = FMath::FRand();
+			if (R < .4f) { Pl.Kind = EPPShotKind::Picada; Pl.Ty = .9f; Pl.Tx = (Gk->Pos.X > 0.f ? -1.f : 1.f) * (.3f + FMath::FRand() * .4f); }
+			else if (R < .85f && Hypot(P.X - Gk->Pos.X, P.Z - Gk->Pos.Y) < 3.2f)
+			{
+				Pl.bDribble = true; Pl.DribT = 0.f; Pl.DribDir = (P.X >= Gk->Pos.X ? 1.f : -1.f) * (FMath::FRand() < .3f ? -1.f : 1.f);
+				Shooter->DekeDir = Pl.DribDir > 0.f ? -1 : 1; Shooter->DekeT = DekeDuration; Shooter->LastDekeTime = Time;
+			}
+		}
+		// gambeta: se abre hacia un costado del arquero y define con el arco libre
+		if (Pl.bDribble)
+		{
+			Pl.DribT += Dt; AiMove.X = Pl.DribDir; AiMove.Y = .55f; Shooter->SweepT = -Pl.DribDir * .3f;
+			const bool bPassed = FMath::Abs(P.X - Gk->Pos.X) > 1.05f || P.Z < Gk->Pos.Y + .5f;
+			if (!(bPassed || Pl.DribT > 1.1f)) return;
+			Pl.bDribble = false; Pl.Kind = FMath::FRand() < .5f ? EPPShotKind::Arrastre : EPPShotKind::Golpe; Pl.bCurve = false; Pl.Power = .5f;
+			const float V = Gk->Pos.X - P.X * .3f; const float Sg = V >= 0.f ? 1.f : -1.f;
+			Pl.Tx = FMath::Clamp(-Sg * (.45f + FMath::FRand() * .25f), -.75f, .75f); Pl.Ty = .15f + FMath::FRand() * .3f;
+			if (FMath::Abs(Gk->Pos.X - Pl.Tx) < .5f) Pl.Tx = -Pl.Tx;
+		}
+		Shooter->Aim = FPPVec(Pl.Tx, Pl.Ty, 0.f);
+		switch (Pl.Kind)
+		{
+		case EPPShotKind::Arrastre: PushShot(); break;
+		case EPPShotKind::Fuetazo: WristShot(); break;
+		case EPPShotKind::Reves: BackhandShot(); break;
+		default: StartCharge(); break;
+		}
+		return;
+	}
+	if (State == EPPState::Charge)
+	{
+		// amague de tiro: levanta el palo y no le pega, para que el arquero se tire
+		if (Pl.bFake && !Pl.bFakeDone && Shooter->ChargeT > .22f) { Pl.bFakeDone = true; State = EPPState::Aim; Shooter->Power = 0.f; AiT = Pl.Wait - .55f; return; }
+		if (Gk->In.bDown && !Pl.bPunished) { Pl.bPunished = true; Pl.Tx = (Gk->Pos.X > 0.f ? -1.f : 1.f) * (.55f + FMath::FRand() * .2f); Pl.Ty = .75f + FMath::FRand() * .2f; }
+		Shooter->Aim = FPPVec(Pl.Tx, Pl.Ty, 0.f);
+		Shooter->Power = FMath::Min(Pl.Power, Shooter->Power + Dt * 2.4f);
+		if (Shooter->Power >= Pl.Power && Shooter->ChargeT > .3f) Release(Pl.Kind == EPPShotKind::Picada, Pl.bCurve && Pl.Kind == EPPShotKind::Golpe);
+	}
+}
+
+// ------------------------------------------------------------------ arquero manejado por una persona
+void APPGameMode::GoalieInput(float Dt)
+{
+	APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);
+	if (!PC) return;
+	FPPGkInput& In = Gk->In;
+	if (Format == EPPFormat::Arquero)
+	{
+		FVector O, D;
+		if (PC->DeprojectMousePositionToWorld(O, D))
+		{
+			const double Xp = -(Gk->Pos.Y + .3) * 100.0;              // plano de las manos (z de juego -> X de Unreal)
+			if (FMath::Abs(D.X) > 1e-4) { const double T = (Xp - O.X) / D.X; if (T > 0.0) { const FVector H = O + D * T; In.X = FMath::Clamp(float(H.Y / 100.0), -4.6f, 4.6f); In.Y = FMath::Clamp(float(H.Z / 100.0), .05f, 1.4f); } }
+			if (FMath::Abs(D.Z) > 1e-4) { const double T = (0.0 - O.Z) / D.Z; if (T > 0.0) { const FVector H = O + D * T; In.Fx = float(H.Y / 100.0); In.Fz = float(-H.X / 100.0); } }
+		}
+		In.bDown = PC->IsInputKeyDown(EKeys::LeftMouseButton) || PC->IsInputKeyDown(EKeys::SpaceBar);
+		In.bOut = PC->IsInputKeyDown(EKeys::LeftShift) || PC->IsInputKeyDown(EKeys::RightShift);
+		if (PC->WasInputKeyJustPressed(EKeys::RightMouseButton) || PC->WasInputKeyJustPressed(EKeys::E)) Gk->TriggerPoke();
+	}
+	else if (Format == EPPFormat::Duelo)
+	{
+		const float H = (PC->IsInputKeyDown(EKeys::Right) ? 1.f : 0.f) - (PC->IsInputKeyDown(EKeys::Left) ? 1.f : 0.f);
+		const float V = (PC->IsInputKeyDown(EKeys::Up) ? 1.f : 0.f) - (PC->IsInputKeyDown(EKeys::Down) ? 1.f : 0.f);
+		if (PC->IsInputKeyDown(EKeys::RightShift))
+		{
+			In.Fx = FMath::Clamp(In.Fx + H * 2.8f * Dt, -4.4f, 4.4f); In.Fz = FMath::Clamp(In.Fz + V * 2.8f * Dt, .42f, 5.3f); In.X = Gk->Pos.X + H * .4f;
+		}
+		else
+		{
+			In.X = FMath::Clamp(In.X + H * 1.7f * Dt, Gk->Pos.X - 1.1f, Gk->Pos.X + 1.1f);
+			In.Y = FMath::Clamp(In.Y + V * 1.5f * Dt, .05f, 1.3f);
+		}
+		In.bDown = PC->IsInputKeyDown(EKeys::Enter);
+		In.bOut = PC->IsInputKeyDown(EKeys::RightShift);
+		if (PC->WasInputKeyJustPressed(EKeys::RightControl)) Gk->TriggerPoke();
+	}
+}
+
+// ------------------------------------------------------------------ repetición del gol
+void APPGameMode::Record()
+{
+	if (State != EPPState::Aim && State != EPPState::Charge && State != EPPState::Swing && State != EPPState::Flight && State != EPPState::Loose) return;
+	FPPFrame F;
+	F.T = Time; F.SPos = Shooter->GamePos; F.SHead = Shooter->Heading; F.SAmp = Shooter->Amp; F.SPhase = Shooter->StridePhase; F.SLean = Shooter->LeanRoll; F.SBrake = Shooter->Brake; F.SSweep = Shooter->Sweep;
+	F.Pose = Shooter->CurPose;
+	F.BallPos = Ball->Pos; F.BallQ = Ball->GetActorQuat(); F.bHide = Ball->IsHidden();
+	F.GPos = Gk->Pos; F.GRoll = Gk->Roll; F.GYaw = Gk->Yaw; F.GKneel = Gk->Kneel; F.GPlay = Gk->Play; F.GGlove = Gk->GloveLocal; F.GBlock = Gk->BlockerLocal; F.GPad = Gk->PadExt;
+	Rec.Add(F);
+	if (Rec.Num() > 420) Rec.RemoveAt(0);
+}
+
+bool APPGameMode::StartReplay()
+{
+	if (Rec.Num() < 10 || !bHasShot || Shot.LaunchT <= 0.f) return false;
+	const float From = Shot.LaunchT - 1.1f, To = FMath::Max(Shot.LaunchT + 1.7f, Shot.GoalT + .9f);
+	Rp.Frames.Reset();
+	for (const FPPFrame& F : Rec) if (F.T >= From && F.T <= To) Rp.Frames.Add(F);
+	if (Rp.Frames.Num() < 10) return false;
+	Rp.T0 = Rp.Frames[0].T; Rp.T1 = Rp.Frames.Last().T; Rp.Tt = Rp.T0; Rp.Speed = .38f;
+	State = EPPState::Replay; ClearFlash();
+	Shooter->bCamInit = false;
+	return true;
+}
+
+void APPGameMode::StepReplay(float Dt)
+{
+	APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0);
+	if (PC && (PC->WasInputKeyJustPressed(EKeys::SpaceBar) || PC->WasInputKeyJustPressed(EKeys::Enter) || PC->WasInputKeyJustPressed(EKeys::LeftMouseButton))) Rp.Tt = Rp.T1 + 1.f;
+	Rp.Tt += Dt * Rp.Speed;
+	if (Rp.Tt >= Rp.T1 + .25f) { Shooter->bCamInit = false; NextTurn(); return; }
+	int32 I = 0;
+	for (int32 k = 0; k < Rp.Frames.Num(); k++) { if (Rp.Frames[k].T > Rp.Tt) break; I = k; }
+	const FPPFrame& F = Rp.Frames[I];
+	Shooter->GamePos = F.SPos; Shooter->Heading = F.SHead; Shooter->Amp = F.SAmp; Shooter->StridePhase = F.SPhase; Shooter->LeanRoll = F.SLean; Shooter->Brake = F.SBrake; Shooter->Sweep = F.SSweep;
+	Shooter->CurPose = F.Pose;
+	Shooter->ApplyVisual(0.f, EPPState::Replay);
+	Ball->Pos = F.BallPos; Ball->SetActorRotation(F.BallQ); Ball->SetActorHiddenInGame(F.bHide); Ball->SyncActor();
+	Gk->Pos = F.GPos; Gk->Roll = F.GRoll; Gk->Yaw = F.GYaw; Gk->Kneel = F.GKneel; Gk->Play = F.GPlay; Gk->GloveLocal = F.GGlove; Gk->BlockerLocal = F.GBlock; Gk->PadExt = F.GPad;
+	Gk->ApplyVisual();
+	Shooter->CamReplay(Dt, F.BallPos);
+}
+
+// ------------------------------------------------------------------ bucle principal
 void APPGameMode::Tick(float DtRaw)
 {
 	Super::Tick(DtRaw);
 	ResolveActors();
 	if (!Shooter || !Ball || !Gk) return;
 	const float Dt = FMath::Clamp(DtRaw, .001f, .05f);
+	if (FlashT > 0.f) { FlashT -= Dt; if (FlashT <= 0.f) ClearFlash(); }
 	if (State == EPPState::Menu || State == EPPState::End) MenuInput();
-	if (bPaused) { Shooter->CamUpdate(Dt, State, Ball->Pos); return; }
+	if (bPaused) { Shooter->CamUpdate(Dt, State, Ball->Pos, Gk->Pos.X); return; }
 	Time += Dt;
+	if (State == EPPState::Replay) { StepReplay(Dt); return; }
+	if (bHasShot && State == EPPState::Flight) Shot.T += Dt;
 
+	const bool bActive = State != EPPState::Menu && State != EPPState::End;
+	if (bActive && Gk->bUser) GoalieInput(Dt);
+	if (bActive && bAiActive) StepAI(Dt);
 	const bool bCanMove = State == EPPState::Aim || State == EPPState::Charge || State == EPPState::Flight || State == EPPState::Loose;
-	if (State != EPPState::Menu && State != EPPState::End) Shooter->SkateStep(Dt, State, bCanMove);
+	if (bActive) Shooter->SkateStep(Dt, State, bCanMove, bAiActive ? &AiMove : nullptr);
 	// barrido del palo (mouse) + amague
 	Shooter->Sweep = FMath::Lerp(Shooter->Sweep, Shooter->SweepT + DekeX, PowDt(Shooter->DekeT > 0.f ? .00001f : .0005f, Dt));
 
@@ -606,16 +997,22 @@ void APPGameMode::Tick(float DtRaw)
 	case EPPState::Flight: StepFlight(Dt); break;
 	case EPPState::Loose: StepLoose(Dt); break;
 	case EPPState::Rival: StepRival(Dt); break;
+	case EPPState::Swap: SwapT -= Dt; if (SwapT <= 0.f) SetupPenalty(); break;
 	default: break;
 	}
-	if (State == EPPState::Flight || State == EPPState::Loose) { /* el palo vuelve a la pose de conducción en StepFlight/StepLoose */ }
 
-	// arquero de la máquina
-	const bool bActive = State != EPPState::Menu && State != EPPState::End;
-	Gk->Update(Dt, Time, bHasShot ? &Shot : nullptr, bLaunched, State, Ball, Shooter, StartPos());
-	if (bActive && Gk->PokeAlpha > .1f && Stealable() && Gk->StickHits(Ball->Pos)) DoSteal();
+	// arquero
+	if (Gk->bUser)
+	{
+		if (!Gk->bInPlayLatched && State == EPPState::Aim && FPPVec::Dist(Shooter->GamePos, StartPos()) > .3f) Gk->bInPlayLatched = true;
+		Gk->Play = FMath::Lerp(Gk->Play, Gk->bInPlayLatched ? 1.f : 0.f, PowDt(.0005f, Dt));
+		Gk->UserUpdate(Dt, Time, State, Ball, Format == EPPFormat::Duelo);
+	}
+	else Gk->Update(Dt, Time, bHasShot ? &Shot : nullptr, bLaunched, State, Ball, Shooter, StartPos());
+	if (bActive && Gk->PokeAlpha > .1f && Stealable() && Gk->StickHits(Ball->Pos)) DoSteal(Gk->bUser);
 
+	Record();
 	Shooter->ApplyVisual(Dt, State);
-	Shooter->CamUpdate(Dt, State, Ball->Pos);
+	Shooter->CamUpdate(Dt, State, Ball->Pos, Gk->Pos.X);
 	Ball->SyncActor();
 }

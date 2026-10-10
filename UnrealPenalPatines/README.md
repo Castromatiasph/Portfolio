@@ -21,6 +21,13 @@ parquet con *clear coat* y los modelos 3D originales (arco, patín, careta, trib
 4. Para el render máximo: *Project Settings > Platforms > Windows* → DX12 / SM6, y activá **Support Hardware Ray Tracing**
    (ya está en `Config/DefaultEngine.ini`). Pide una RTX 3070 o superior para 4K.
 
+## Rendimiento y calidad gráfica
+
+El proyecto arranca en calidad **Media** (Lumen para la iluminación global, sin ray tracing por hardware, 80 % de resolución con TSR).
+Para cambiarla, en el menú inicial tocá **9**: **Baja** (60 %, sin GI, luz de relleno — para placas modestas), **Media** o **Alta**
+(100 %, reflejos Lumen, sombras suaves en todas las luces). La pista usa pocas luces (6), componentes estáticos e instancias
+(hinchada, red, papelitos), así que es liviana.
+
 ## Controles (iguales al juego web)
 
 | Acción | Teclado y mouse | Joystick |
@@ -33,8 +40,11 @@ parquet con *clear coat* y los modelos 3D originales (arco, patín, careta, trib
 | Amagues | Q / E | cruceta |
 | Cámara / volver al punto / pausa | C / R / Esc | Y / — / Start |
 
-Menú inicial (teclas): `1` Práctica · `2` Tanda · `3` Penal (5,40 m) · `4` Libre (7,40 m) · `5/6/7` nivel del arquero
-(Infantiles / Primera / Mundial) · `8` estilo del arquero · `Enter` jugar.
+Menú inicial (teclas): `1` Práctica · `2` Tanda · `3` Atajá vos · `4` Desafíos · `5` 2 jugadores · `6` Penal/Libre ·
+`7` nivel del arquero · `8` estilo del arquero · `9` calidad gráfica · `Enter` jugar.
+
+**Atajá vos:** mouse para ubicar las manos, clic o Espacio para tirarte, Shift para salir por el área, clic derecho o E para el palo.
+**2 jugadores:** patea con WASD + mouse; ataja con flechas, Enter (tirarse), Shift derecho (salir) y Ctrl derecho (palo).
 
 ## Qué se portó (y dónde está)
 
@@ -55,21 +65,21 @@ Convención de ejes: la simulación corre en el espacio del juego web (metros, y
 mover los actores se convierte a Unreal (`PP::ToUE`): `UE.X = -z·100`, `UE.Y = x·100`, `UE.Z = y·100`.
 El arco queda en el origen y el que patea mira hacia +X.
 
-## Qué falta (para llegar al realismo "de verdad")
+## Qué incluye ahora
 
-1. **Personajes animados.** Hoy el jugador y el arquero son piezas básicas (cilindro, cubos) para que todo sea jugable.
-   `PPShooter` y `PPGoalkeeper` ya exponen las variables para un AnimBP (`Speed`, `StridePhase`, `Amp`, `Brake`, `LeanRoll`,
-   `TwistAlpha`, `StickPitch`; `Kneel`, `Play`, `PadExt`, `Lean`, `PokeAlpha`). Pasos: importar `SK_Matias` (el jugador del
-   juego, esqueleto MakeHuman) o un **MetaHuman**, retargetearlo, y armar un AnimBP con *Control Rig / FullBodyIK* (o Motion
-   Matching) que lea esas variables. Asignalo en `BodyMesh` y ocultá `Placeholder`.
-2. **Palo, bocha y careta con materiales PBR.** El palo del juego web (`STICK_DATA`, CC BY-NC-SA, de Yogensia) no se exportó;
-   usá un modelo propio. La careta importada es `SM_CarataArquero`.
-3. **Sonido.** `APPGameMode::OnPPEvent` es un evento de Blueprint que se dispara con `hit`, `net`, `post`, `save`, `goal`,
-   `whistle`, `bounce`, `board`, `groan`, `cheer`: heredá un Blueprint del GameMode y enchufá MetaSounds / Niagara ahí.
-4. **Hinchada.** `SM_Butaca` y `SM_Hinchas` están importados; falta poblarlas con instancias (HISM) y animación por vértices.
-5. **Modos que no se portaron:** *Atajá vos* (vos sos el arquero), *Desafíos*, *2 jugadores* y la repetición del gol.
-   La estructura (`EPPFormat`, `NextTurn`) está lista para sumarlos.
-6. **Red del arco** con deformación (hoy se usa la malla estática importada).
+Modos: práctica, tanda contra un rival, **Atajá vos**, **Desafíos** (7 objetivos con estrellas) y **2 jugadores**; repetición del gol
+en cámara lenta (clic o Espacio para saltearla); hinchada que salta, papelitos, red del arco, publicidad en la valla; sonidos
+sintetizados (`Tools/make_sounds.py`) y ambiente de estadio; jugador armado con formas básicas que patina (piernas, brazos, palo).
+
+## Qué falta
+
+1. **Personajes realistas y animados.** El jugador y el arquero siguen siendo formas básicas. `PPShooter` y `PPGoalkeeper` exponen las
+   variables para un AnimBP (`Speed`, `StridePhase`, `Amp`, `Brake`, `LeanRoll`, `TwistAlpha`, `StickPitch`; `Kneel`, `Play`, `PadExt`,
+   `Lean`, `PokeAlpha`). Poné `IMPORT_MODELS = True` en `Tools/setup_level.py` para importar `SK_Matias` y `SK_Jugador`, o usá un
+   **MetaHuman**, retargetealo y armá un AnimBP con Control Rig / FullBodyIK. Asignalo en `BodyMesh`.
+2. **Palo, bocha y careta con materiales PBR** (el palo del juego web es CC BY-NC-SA y no se incluyó).
+3. **Joystick en Atajá vos y 2 jugadores** (hoy el arquero se maneja con mouse y teclado).
+4. **Deformación de la red** al entrar la bocha.
 
 ## Estructura
 
@@ -80,8 +90,9 @@ UnrealPenalPatines/
 ├─ Source/PenalPatines/   (C++: juego completo)
 ├─ SourceAssets/
 │   ├─ Models/        SM_Arco, SM_Butaca, SM_Hinchas, SM_Patin, SM_CarataArquero (.gltf), SK_Jugador, SK_Matias
-│   └─ Textures/      texturas de los modelos + parquet 2K generado (Tools/make_parquet.py)
-└─ Tools/             setup_level.py (editor), make_parquet.py
+│   ├─ Textures/      texturas de los modelos + parquet 2K y publicidad generados
+│   └─ Audio/         efectos y ambiente (WAV sintetizados)
+└─ Tools/             setup_level.py (editor), make_parquet.py, make_ads.py, make_sounds.py
 ```
 
 ## Créditos de los modelos (del juego original)

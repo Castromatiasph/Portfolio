@@ -29,17 +29,25 @@ APPShooter::APPShooter()
 
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> Cyl(TEXT("/Engine/BasicShapes/Cylinder.Cylinder"));
 	static ConstructorHelpers::FObjectFinder<UStaticMesh> Cube(TEXT("/Engine/BasicShapes/Cube.Cube"));
-	Placeholder = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("Placeholder"));
-	Placeholder->SetupAttachment(Root);
-	Placeholder->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	if (Cyl.Succeeded()) Placeholder->SetStaticMesh(Cyl.Object);
-	Placeholder->SetRelativeScale3D(FVector(.5, .5, .85));      // cilindro básico: 100 cm de diámetro y 100 cm de alto
-	Placeholder->SetRelativeLocation(FVector(0, 0, 85));
-
-	StickMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("StickMesh"));
-	StickMesh->SetupAttachment(Root);
-	StickMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	if (Cube.Succeeded()) StickMesh->SetStaticMesh(Cube.Object);
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> Sph(TEXT("/Engine/BasicShapes/Sphere.Sphere"));
+	auto Make = [&](const TCHAR* Name, UStaticMesh* M)
+	{
+		UStaticMeshComponent* C = CreateDefaultSubobject<UStaticMeshComponent>(Name);
+		C->SetupAttachment(Root);
+		C->SetMobility(EComponentMobility::Movable);
+		C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		if (M) C->SetStaticMesh(M);
+		return C;
+	};
+	UStaticMesh* CylM = Cyl.Succeeded() ? Cyl.Object : nullptr;
+	UStaticMesh* CubeM = Cube.Succeeded() ? Cube.Object : nullptr;
+	UStaticMesh* SphM = Sph.Succeeded() ? Sph.Object : nullptr;
+	TorsoC = Make(TEXT("TorsoC"), CylM);
+	HeadC = Make(TEXT("HeadC"), SphM);
+	LegC.Add(Make(TEXT("LegL"), CylM)); LegC.Add(Make(TEXT("LegR"), CylM));
+	SkateC.Add(Make(TEXT("SkateL"), CubeM)); SkateC.Add(Make(TEXT("SkateR"), CubeM));
+	ArmC.Add(Make(TEXT("ArmL"), CylM)); ArmC.Add(Make(TEXT("ArmR"), CylM));
+	StickMesh = Make(TEXT("StickMesh"), CubeM);
 
 	Cam = CreateDefaultSubobject<UCameraComponent>(TEXT("Cam"));
 	Cam->SetupAttachment(Root);
@@ -80,7 +88,7 @@ void APPShooter::InAimY(float V) { AimStick.Y = V; }
 
 void APPShooter::OnShootPressed()
 {
-	APPGameMode* M = Match(); if (!M) return;
+	APPGameMode* M = Match(); if (!M || !M->UserShoots()) return;
 	APlayerController* PC = Cast<APlayerController>(GetController());
 	float Mx = 0, My = 0;
 	if (PC && PC->GetMousePosition(Mx, My) && M->State == EPPState::Aim) { bPullHeld = true; PullStartY = My; }
@@ -89,24 +97,24 @@ void APPShooter::OnShootPressed()
 
 void APPShooter::OnShootReleased()
 {
-	APPGameMode* M = Match(); if (!M) return;
+	APPGameMode* M = Match(); if (!M || !M->UserShoots()) return;
 	bPullHeld = false;
 	M->Release(bLobHeld, bCurveHeld);
 }
 
-void APPShooter::OnPush() { if (APPGameMode* M = Match()) M->PushShot(); }
-void APPShooter::OnWrist() { if (APPGameMode* M = Match()) M->WristShot(); }
-void APPShooter::OnBack() { if (APPGameMode* M = Match()) M->BackhandShot(); }
+void APPShooter::OnPush() { if (APPGameMode* M = Match()) if (M->UserShoots()) M->PushShot(); }
+void APPShooter::OnWrist() { if (APPGameMode* M = Match()) if (M->UserShoots()) M->WristShot(); }
+void APPShooter::OnBack() { if (APPGameMode* M = Match()) if (M->UserShoots()) M->BackhandShot(); }
 void APPShooter::OnReset() { if (APPGameMode* M = Match()) M->ResetToSpot(); }
 void APPShooter::OnCam() { CycleCamera(); }
 void APPShooter::OnPause() { if (APPGameMode* M = Match()) M->TogglePause(); }
 
-void APPShooter::OnDekeL() { APPGameMode* M = Match(); if (M && M->State == EPPState::Aim && DekeT <= 0.f) { DekeDir = 1; DekeT = APPGameMode::DekeDuration; LastDekeTime = M->Time; } }
-void APPShooter::OnDekeR() { APPGameMode* M = Match(); if (M && M->State == EPPState::Aim && DekeT <= 0.f) { DekeDir = -1; DekeT = APPGameMode::DekeDuration; LastDekeTime = M->Time; } }
+void APPShooter::OnDekeL() { APPGameMode* M = Match(); if (M && M->UserShoots() && M->State == EPPState::Aim && DekeT <= 0.f) { DekeDir = 1; DekeT = APPGameMode::DekeDuration; LastDekeTime = M->Time; } }
+void APPShooter::OnDekeR() { APPGameMode* M = Match(); if (M && M->UserShoots() && M->State == EPPState::Aim && DekeT <= 0.f) { DekeDir = -1; DekeT = APPGameMode::DekeDuration; LastDekeTime = M->Time; } }
 
 void APPShooter::CycleCamera()
 {
-	CamMode = EPPCamera((int32(CamMode) + 1) % 3);
+	if (APPGameMode* M = Match()) CamMode = M->NextCamera(CamMode);
 	bCamInit = false;
 }
 
@@ -261,9 +269,22 @@ void APPShooter::SkateStep(float Dt, EPPState State, bool bCanMove, const FPPVec
 	StartK = FMath::Lerp(StartK, (bPushing && Sp < 2.4f) ? 1.f - Sp / 2.4f : 0.f, PowDt(.02f, Dt));
 	if (Amp > .01f) StridePhase += Dt * StartK * 1.6f;
 	LeanRoll = FMath::Lerp(LeanRoll, FMath::Clamp(-HeadV * Sp * .014f, -.2f, .2f), PowDt(.003f, Dt));
+	HipSway = FMath::Lerp(HipSway, -.06f * FMath::Sin(StridePhase - .35f) * Amp, PowDt(.0005f, Dt));
 }
 
 // ---------------------------------------------------------------- visual y cámara
+void APPShooter::Seg(UStaticMeshComponent* C, const FPPVec& A, const FPPVec& B, float DiaM)
+{
+	if (!C) return;
+	const FVector Ua = PP::ToUE(A), Ub = PP::ToUE(B);
+	const FVector D = Ub - Ua;
+	const double Len = D.Size();
+	if (Len < 1e-3) return;
+	C->SetRelativeLocation((Ua + Ub) * .5);
+	C->SetRelativeRotation(FRotationMatrix::MakeFromZ(D).Rotator());
+	C->SetRelativeScale3D(FVector(DiaM, DiaM, Len / 100.0));
+}
+
 void APPShooter::ApplyVisual(float Dt, EPPState State)
 {
 	(void)Dt; (void)State;
@@ -272,20 +293,42 @@ void APPShooter::ApplyVisual(float Dt, EPPState State)
 	SetActorRotation(FRotator(0.f, FMath::RadiansToDegrees(-Heading), FMath::RadiansToDegrees(-LeanRoll)));
 	TwistAlpha = CurPose.Tw; StickPitch = CurPose.Th;
 
-	// palo provisorio: desde la mano (espacio del torso) hacia abajo, girado por Th
+	// ---- cuerpo provisorio (espacio del torso: x derecha, y arriba, -z adelante) ----
+	const float HipH = HipY - .05f * Amp - .04f * Brake;
+	const FPPVec Hip(HipSway, HipH, 0.f);
+	const float A = FMath::Clamp(-CurPose.Ln, 0.f, 1.1f);                 // inclinación hacia adelante
+	const FPPVec Sh0 = Hip + FPPVec(0.f, .52f * FMath::Cos(A), -.52f * FMath::Sin(A));
+	const float Tw = CurPose.Tw, Ctw = FMath::Cos(Tw), Stw = FMath::Sin(Tw);
+	const FPPVec ShL = Sh0 + FPPVec(-.2f * Ctw, 0.f, .2f * Stw), ShR = Sh0 + FPPVec(.2f * Ctw, 0.f, -.2f * Stw);
+	Seg(TorsoC, Hip, Sh0, .32f);
+	if (HeadC) { HeadC->SetRelativeLocation(PP::ToUE(Sh0 + FPPVec(0.f, .2f, -.1f * FMath::Sin(A)))); HeadC->SetRelativeScale3D(FVector(.22)); }
+	for (int i = 0; i < 2; i++)
+	{
+		const float Sd = i == 0 ? -1.f : 1.f;
+		const float Ph = StridePhase + i * PI;
+		const float Zf = -FMath::Sin(Ph) * .35f * Amp;                   // adelante = -z
+		const float Lift = FMath::Max(0.f, FMath::Cos(Ph)) * .1f * Amp;
+		const FPPVec Foot(Sd * .14f + HipSway * .5f + Sd * Brake * .12f, .09f + Lift, Zf);
+		Seg(LegC[i], Hip + FPPVec(Sd * .11f, 0.f, 0.f), Foot + FPPVec(0.f, .03f, 0.f), .16f);
+		if (SkateC[i])
+		{
+			SkateC[i]->SetRelativeLocation(PP::ToUE(Foot + FPPVec(0.f, -.035f, 0.f)));
+			SkateC[i]->SetRelativeScale3D(FVector(.32, .1, .1));          // largo adelante (X), ancho (Y), alto (Z)
+		}
+	}
+
+	// ---- palo y manos ----
 	const FPPVec Hand(CurPose.H.X, HipY + CurPose.H.Y, CurPose.H.Z);
 	const float C = FMath::Cos(CurPose.Th), S = FMath::Sin(CurPose.Th);
 	FPPVec D(StickRestDir.X, StickRestDir.Y * C - StickRestDir.Z * S, StickRestDir.Y * S + StickRestDir.Z * C);
 	D.Normalize();
 	const float Len = 1.1f;
-	const FPPVec Mid = Hand + D * (Len * .5f);
-	StickMesh->SetRelativeLocation(PP::ToUE(Mid));
-	StickMesh->SetRelativeScale3D(FVector(.025, .025, Len));
-	const FVector DirUE = PP::ToUE(D).GetSafeNormal();
-	StickMesh->SetRelativeRotation(FRotationMatrix::MakeFromZ(DirUE).Rotator());
+	Seg(StickMesh, Hand - D * .05f, Hand + D * Len, .028f);
+	Seg(ArmC[0], ShL, Hand + D * .3f, .1f);    // mano de abajo (izquierda)
+	Seg(ArmC[1], ShR, Hand + D * .05f, .1f);   // mano de arriba (derecha)
 }
 
-void APPShooter::CamUpdate(float Dt, EPPState State, const FPPVec& BallPos)
+void APPShooter::CamUpdate(float Dt, EPPState State, const FPPVec& BallPos, float GkX)
 {
 	using namespace PP;
 	FPPVec Want, Look;
@@ -305,11 +348,17 @@ void APPShooter::CamUpdate(float Dt, EPPState State, const FPPVec& BallPos)
 		if (State == EPPState::Charge || State == EPPState::Swing || State == EPPState::Flight) Look = FMath::Lerp(Look, FPPVec(0.f, .55f, 0.f), .5f);
 		break;
 	}
+	case EPPCamera::Arquero:   // detrás del arco, como si fuera el arquero
+	{
+		Want = FPPVec(GkX * .5f, 1.45f, -2.05f);
+		Look = FPPVec(BallPos.X * .25f, .5f, FMath::Min(BallPos.Z, 7.f) * .55f + 1.2f);
+		break;
+	}
 	default:             // detrás del jugador, mirando al arco
 	{
 		const FPPVec Back = FPPVec(P.X * .5f, 0.f, P.Z + 9.f).GetSafeNormal();
-		Want = FPPVec(P.X, 0.f, P.Z) + Back * 6.4f + FPPVec(Back.Z * -.6f, 2.9f, 0.f);
-		const float K = State == EPPState::Flight ? .75f : .42f;
+		Want = FPPVec(P.X, 0.f, P.Z) + Back * 7.6f + FPPVec(Back.Z * -.6f, 3.3f, 0.f);
+		const float K = State == EPPState::Flight ? .75f : .5f;
 		Look = FMath::Lerp(FPPVec(P.X, .7f, P.Z), FPPVec(0.f, .55f, 0.f), K) + Pvel * .1f;
 		break;
 	}
@@ -320,7 +369,7 @@ void APPShooter::CamUpdate(float Dt, EPPState State, const FPPVec& BallPos)
 	CamLookG = FMath::Lerp(CamLookG, Look, PowDt(bFp ? 1e-5f : .001f, Dt));
 	FPPVec Pos = CamPosG;
 	if (Shake > 0.f) { Shake = FMath::Max(0.f, Shake - Dt * 1.6f); Pos.X += (FMath::FRand() - .5f) * .05f * Shake; Pos.Y += (FMath::FRand() - .5f) * .05f * Shake; }
-	const float FovWant = 50.f + (CamMode == EPPCamera::Jugador ? FMath::Clamp(Speed / 7.f, 0.f, 1.f) * 3.5f : 0.f);
+	const float FovWant = 54.f + (CamMode == EPPCamera::Jugador ? FMath::Clamp(Speed / 7.f, 0.f, 1.f) * 3.5f : 0.f);
 	CamFov = FMath::Lerp(CamFov, FovWant, PowDt(.05f, Dt));
 	Cam->SetFieldOfView(CamFov);
 	const FVector PosUE = ToUE(Pos), LookUE = ToUE(CamLookG);
@@ -330,8 +379,28 @@ void APPShooter::CamUpdate(float Dt, EPPState State, const FPPVec& BallPos)
 void APPShooter::BeginPlay()
 {
 	Super::BeginPlay();
-	if (Placeholder) Placeholder->SetMaterial(0, PP::ColorMID(this, FLinearColor(.04f, .06f, .22f), .7f));   // camiseta azul
-	if (StickMesh) StickMesh->SetMaterial(0, PP::ColorMID(this, FLinearColor(.75f, .55f, .3f), .4f));        // palo de madera
+	auto Col = [&](UStaticMeshComponent* C, FLinearColor K, float R = .6f) { if (C) C->SetMaterial(0, PP::ColorMID(this, K, R)); };
+	Col(TorsoC, FLinearColor(.04f, .06f, .22f), .8f);                       // camiseta azul
+	Col(HeadC, FLinearColor(.45f, .28f, .2f), .55f);                        // piel
+	for (auto& L : LegC) Col(L, FLinearColor(.03f, .04f, .12f), .8f);       // pantalón / medias
+	for (auto& S : SkateC) Col(S, FLinearColor(.02f, .02f, .025f), .35f);   // patines
+	for (auto& A : ArmC) Col(A, FLinearColor(.45f, .28f, .2f), .55f);
+	Col(StickMesh, FLinearColor(.75f, .55f, .3f), .4f);                     // palo de madera
+	const bool bSk = BodyMesh && BodyMesh->GetSkeletalMeshAsset();
+	if (bSk) { for (auto* C : {TorsoC.Get(), HeadC.Get()}) if (C) C->SetVisibility(false); }
+}
+
+void APPShooter::CamReplay(float Dt, const FPPVec& B)
+{
+	// cámara de transmisión al costado del arco, baja, siguiendo la bocha
+	const FPPVec Want(4.2f, 1.25f, FMath::Max(1.2f, B.Z * .35f + 1.4f));
+	const FPPVec Look(B.X * .6f, .55f, FMath::Min(B.Z, 4.f) * .6f);
+	if (!bCamInit) { CamPosG = Want; CamLookG = Look; bCamInit = true; }
+	CamPosG = FMath::Lerp(CamPosG, Want, PP::PowDt(.02f, Dt));
+	CamLookG = FMath::Lerp(CamLookG, Look, PP::PowDt(.005f, Dt));
+	const FVector PosUE = PP::ToUE(CamPosG), LookUE = PP::ToUE(CamLookG);
+	Cam->SetFieldOfView(50.f);
+	Cam->SetWorldLocationAndRotation(PosUE, FRotationMatrix::MakeFromX(LookUE - PosUE).Rotator());
 }
 
 void APPShooter::Tick(float Dt)
@@ -339,7 +408,7 @@ void APPShooter::Tick(float Dt)
 	Super::Tick(Dt);
 	// el resto (estado, bocha, tiro) lo orquesta APPGameMode::Tick; acá solo la entrada continua del mouse/stick
 	APPGameMode* M = Match(); if (!M) return;
-	if (M->State == EPPState::Aim || M->State == EPPState::Charge)
+	if (M->UserShoots() && (M->State == EPPState::Aim || M->State == EPPState::Charge))
 	{
 		if (AimStick.SizeSquared() > .04f)
 		{
@@ -348,8 +417,8 @@ void APPShooter::Tick(float Dt)
 		}
 		else UpdateAimFromMouse();
 	}
-	if (M->State == EPPState::Charge) UpdatePullFromMouse();
-	if (M->State == EPPState::Aim)
+	if (M->UserShoots() && M->State == EPPState::Charge) UpdatePullFromMouse();
+	if (M->UserShoots() && M->State == EPPState::Aim)
 	{
 		APlayerController* PC = Cast<APlayerController>(GetController());
 		float Mx = 0, My = 0; int32 Vx = 1, Vy = 1;

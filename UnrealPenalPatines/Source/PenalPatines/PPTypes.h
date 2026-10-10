@@ -68,14 +68,15 @@ namespace PP
 	FORCEINLINE float PowDt(float base, float dt) { return 1.f - FMath::Pow(base, dt); } // lerp alpha independiente del framerate
 }
 
-UENUM(BlueprintType) enum class EPPFormat : uint8 { Practica, Tanda };
+UENUM(BlueprintType) enum class EPPFormat : uint8 { Practica, Tanda, Arquero, Desafio, Duelo };
 UENUM(BlueprintType) enum class EPPShotMode : uint8 { Penal, Libre };
 UENUM(BlueprintType) enum class EPPDifficulty : uint8 { Infantiles, Primera, Mundial };
 UENUM(BlueprintType) enum class EPPShotKind : uint8 { Golpe, Arrastre, Picada, Fuetazo, Reves };
 UENUM(BlueprintType) enum class EPPGKStyle : uint8 { Variado, Atrevido, Linea, Temprano };
 UENUM(BlueprintType) enum class EPPOutcome : uint8 { None, Goal, Save, Post, Miss };
-UENUM(BlueprintType) enum class EPPState : uint8 { Menu, Aim, Charge, Swing, Flight, Loose, Rival, End };
-UENUM(BlueprintType) enum class EPPCamera : uint8 { Jugador, TV, Primera };
+UENUM(BlueprintType) enum class EPPState : uint8 { Menu, Aim, Charge, Swing, Flight, Loose, Rival, Swap, Replay, End };
+UENUM(BlueprintType) enum class EPPCamera : uint8 { Jugador, TV, Primera, Arquero };
+UENUM(BlueprintType) enum class EPPQuality : uint8 { Baja, Media, Alta };
 
 /** Parámetros del arquero según el nivel (DIFF del juego web). */
 USTRUCT(BlueprintType)
@@ -143,5 +144,16 @@ struct FPPShot
 	EPPOutcome Outcome = EPPOutcome::None;
 	bool bGkChecked = false, bLineChecked = false, bInGoal = false, bNetHit = false, bCaught = false;
 	float HoldT = 0.f, NoCatch = 0.f, NoPick = 0.f, PrevZ = 0.f;
+	float LaunchT = 0.f, GoalT = 0.f;
+	bool bGkEarly = false, bChDone = false, bDeke = false;
 	FString Detail;
+};
+
+/** Entrada del arquero manejado por una persona (modos "Atajá vos" y "2 jugadores"). */
+struct FPPGkInput
+{
+	float X = 0.f, Y = .5f;          // dónde apunta las manos (plano del arco)
+	bool bDown = false;              // tirarse
+	bool bOut = false;               // salir por el área
+	float Fx = 0.f, Fz = .42f;       // adónde salir
 };

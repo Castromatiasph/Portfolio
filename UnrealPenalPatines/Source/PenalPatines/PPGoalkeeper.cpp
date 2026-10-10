@@ -256,7 +256,6 @@ void APPGoalkeeper::Update(float Dt, float Time, FPPShot* S, bool bLaunched, EPP
 	}
 
 	// ---- reacción al tiro ----
-	Sh->T += Dt;
 	const FPose Base = PoseAt(Kneel, Play);
 	if (Sh->T <= Sh->React)
 	{
@@ -299,6 +298,40 @@ void APPGoalkeeper::Update(float Dt, float Time, FPPShot* S, bool bLaunched, EPP
 	}
 	const float Tilt = (bLow && bFar ? .28f : .15f) * Sh->Tilt * (Tech == TEXT("estirada") ? 1.45f : Tech == TEXT("stack") ? 1.3f : Tech == TEXT("cuerpo") ? .5f : 1.f);
 	Roll = FMath::Lerp(Roll, -Sh->ReachSide * Tilt * E, PP::PowDt(.0001f, Dt));
+	ApplyVisual();
+}
+
+void APPGoalkeeper::UserUpdate(float Dt, float Time, EPPState State, APPBall* Ball, bool bDuel)
+{
+	(void)Time;
+	const float Slow = 1.f - Kneel * .7f;
+	// salir: mientras se mantiene el botón, el arquero va a cualquier punto del área (9 × 5,40 m); al soltarlo vuelve a la línea
+	if (In.bOut && !bOuting) { bOuting = true; if (bDuel) { In.Fx = Pos.X; In.Fz = Pos.Y; } }
+	if (!In.bOut) bOuting = false;
+	if (In.bOut && !In.bDown) Move(FPPVec2(FMath::Clamp(In.Fx, -4.4f, 4.4f), FMath::Clamp(In.Fz, .42f, 5.3f)), 3.4f * Slow, Dt, 14.f);
+	else if (In.bDown && Pos.Y > .7f) Move(FPPVec2(Pos.X + Vel.X * .05f, Pos.Y + Vel.Y * .05f), 3.f, Dt, 10.f);   // tirado afuera del arco: frena donde está
+	else Move(FPPVec2(FMath::Clamp(In.X, -.55f, .55f), .42f), 2.7f * Slow, Dt, 18.f);
+	if (PokeAlpha > 0.f) { PokeT += Dt; PokeAlpha = PokeT < .2f ? PokeT / .2f : FMath::Max(0.f, 1.f - (PokeT - .2f) / .3f); }
+	const FPPVec Bp = Ball ? Ball->Pos : FPPVec(0.f, 0.f, PP::SpotZ);
+	Yaw = FMath::Lerp(Yaw, FMath::Clamp(FMath::Atan2(Bp.X - Pos.X, FMath::Max(Bp.Z, .8f)), -.6f, .6f) * .6f, PP::PowDt(.02f, Dt));
+	const bool bDown = In.bDown && State != EPPState::Menu;
+	Kneel = FMath::Lerp(Kneel, bDown ? 1.f : 0.f, PP::PowDt(bDown ? 1e-6f : .03f, Dt));
+	UserExt = bDown ? FMath::Min(1.f, UserExt + Dt / .16f) : FMath::Max(0.f, UserExt - Dt / .35f);
+	const FPose Base = PoseAt(Kneel, Play);
+	const float E = UserExt;
+	const float Rx = In.X - Pos.X, Ry = In.Y;
+	const int32 Side = FMath::Abs(Rx) < .14f ? 0 : (Rx > 0.f ? 1 : -1);
+	const FPPVec Reach(FMath::Clamp(Rx, -.95f, .95f), FMath::Clamp(Ry, .08f, 1.25f), .32f);
+	GloveLocal = FMath::Lerp(Base.Glove, Reach, Side > 0 ? E : (Side == 0 && Ry > .55f ? E * .8f : 0.f));
+	BlockerLocal = FMath::Lerp(Base.Block, Reach, Side < 0 ? E : 0.f);
+	if (PokeAlpha > 0.f && Ball) BlockerLocal = FMath::Lerp(BlockerLocal, FPPVec(FMath::Clamp(Bp.X - Pos.X, -.75f, .2f), .16f, FMath::Clamp(Bp.Z - Pos.Y, .2f, .75f)), PokeAlpha);
+	const bool bLow = Ry < .42f, bFar = FMath::Abs(Rx) > .3f;
+	for (int i = 0; i < 2; i++)
+	{
+		const float Sd = i == 0 ? -1.f : 1.f;
+		PadExt[i] = bLow ? (Side == (int32)Sd ? Sd * (bFar ? .2f : .1f) * E : (Side == 0 ? -Sd * .03f * E : 0.f)) : 0.f;
+	}
+	Roll = -Side * (bLow && bFar ? .28f : .15f) * E;
 	ApplyVisual();
 }
 

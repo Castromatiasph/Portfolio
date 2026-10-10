@@ -52,6 +52,14 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Visual") TObjectPtr<USkeletalMeshComponent> BodyMesh;
 
+	// ---- arquero manejado por una persona ----
+	bool bUser = false;
+	FPPGkInput In;
+	bool bOuting = false;
+	float UserExt = 0.f;
+	void UserUpdate(float Dt, float Time, EPPState State, APPBall* Ball, bool bDuel);
+	void TriggerPoke() { if (PokeAlpha <= 0.f) { PokeAlpha = .01f; PokeT = 0.f; } }
+
 	void ResetForShot(bool bPickStyle);
 	void PickStyle();
 

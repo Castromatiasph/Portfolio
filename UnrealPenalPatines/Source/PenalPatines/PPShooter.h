@@ -43,8 +43,13 @@ public:
 
 	// ---- componentes ----
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TObjectPtr<USkeletalMeshComponent> BodyMesh;
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TObjectPtr<UStaticMeshComponent> Placeholder; // cuerpo provisorio
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TObjectPtr<UStaticMeshComponent> StickMesh;
+	// cuerpo provisorio armado con formas básicas (se oculta cuando se asigna un SkeletalMesh en BodyMesh)
+	UPROPERTY() TObjectPtr<UStaticMeshComponent> TorsoC;
+	UPROPERTY() TObjectPtr<UStaticMeshComponent> HeadC;
+	UPROPERTY() TArray<TObjectPtr<UStaticMeshComponent>> LegC;
+	UPROPERTY() TArray<TObjectPtr<UStaticMeshComponent>> SkateC;
+	UPROPERTY() TArray<TObjectPtr<UStaticMeshComponent>> ArmC;
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TObjectPtr<UCameraComponent> Cam;
 
 	// ---- estado para el AnimBP ----
@@ -77,6 +82,7 @@ public:
 	bool bPullHeld = false; float PullStartY = 0.f; bool bMouseAim = true;
 	bool bLobHeld = false, bCurveHeld = false;
 	EPPCamera CamMode = EPPCamera::Jugador;
+	bool bCamInit = false;
 	float Shake = 0.f;
 
 	// ---- API para el GameMode ----
@@ -87,8 +93,10 @@ public:
 	void SetPose(const FPPPose& P);
 	FPPPose SwingPose(float T, float PowerForFollow) const;
 	void BeginSwing(EPPShotKind Kind, float C);
-	void CamUpdate(float Dt, EPPState State, const FPPVec& BallPos);
+	void CamUpdate(float Dt, EPPState State, const FPPVec& BallPos, float GkX = 0.f);
+	void CamReplay(float Dt, const FPPVec& BallPos);
 	void CycleCamera();
+	void Seg(UStaticMeshComponent* C, const FPPVec& A, const FPPVec& B, float DiaM);
 	void UpdateAimFromMouse();
 	void UpdatePullFromMouse();
 	void ApplyVisual(float Dt, EPPState State);
@@ -126,5 +134,4 @@ private:
 	FPPVec CamPosG = FPPVec::ZeroVector;
 	FPPVec2 AimStick = FPPVec2::ZeroVector;
 	float CamFov = 50.f;
-	bool bCamInit = false;
 };
