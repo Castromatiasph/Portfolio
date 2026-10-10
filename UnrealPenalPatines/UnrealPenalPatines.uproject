@@ -1,6 +1,6 @@
 {
 	"FileVersion": 3,
-	"EngineAssociation": "5.5",
+	"EngineAssociation": "5.7",
 	"Category": "Games",
 	"Description": "Penal sobre Patines - port a Unreal Engine 5 del juego web",
 	"Modules": [
