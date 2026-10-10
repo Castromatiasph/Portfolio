@@ -15,7 +15,7 @@ class USoundBase;
 struct FPPFrame
 {
 	float T = 0.f;
-	FPPVec SPos = FPPVec::ZeroVector; float SHead = 0.f, SAmp = 0.f, SPhase = 0.f, SLean = 0.f, SBrake = 0.f, SSweep = 0.f; FPPPose Pose;
+	FPPVec SPos = FPPVec::ZeroVector; float SHead = 0.f, SAmp = 0.f, SPhase = 0.f, SLean = 0.f, SBrake = 0.f, SSweep = 0.f, SPin = 0.f; FPPPose Pose;
 	FPPVec BallPos = FPPVec::ZeroVector; FQuat BallQ = FQuat::Identity; bool bHide = false;
 	FPPVec2 GPos = FPPVec2::ZeroVector; float GRoll = 0.f, GYaw = 0.f, GKneel = 0.f, GPlay = 0.f;
 	FPPVec GGlove = FPPVec::ZeroVector, GBlock = FPPVec::ZeroVector; FPPVec2 GPad = FPPVec2::ZeroVector;
