@@ -14,7 +14,7 @@ namespace
 void APPHUD::Text(const FString& S, float X0, float Y0, const FLinearColor& C, float Scale, bool bCenter)
 {
 	UFont* F = GEngine->GetLargeFont();
-	const float Sc = Scale * Ui * .8f;
+	const float Sc = Scale * Ui * 1.3f;
 	float W = 0, H = 0;
 	float Px = X(X0);
 	if (bCenter) { GetTextSize(S, W, H, F, Sc); Px -= W * .5f; }

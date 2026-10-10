@@ -144,7 +144,7 @@ void APPArena::BuildCrowd()
 		F.Idx = Count[F.Group]++;
 		FTransform Tt; Tt.SetLocation(F.Base + FVector(0, 0, 30)); Tt.SetScale3D(FVector(.24, .36, .44));
 		CrowdTorso[F.Group]->AddInstance(Tt);
-		FTransform Th; Th.SetLocation(F.Base + FVector(0, 0, 66)); Th.SetScale3D(FVector(.2));
+		FTransform Th; Th.SetLocation(F.Base + FVector(0, 0, 59)); Th.SetScale3D(FVector(.2));
 		CrowdHead->AddInstance(Th);
 	}
 }
@@ -157,7 +157,7 @@ void APPArena::PlaceFans(float T, float Jump)
 		const float Up = Jump > 0.f ? FMath::Abs(FMath::Sin(T * 9.f + F.Phase)) * Jump * 22.f : 0.f;
 		FTransform Tt; Tt.SetLocation(F.Base + FVector(0, 0, 30 + Up)); Tt.SetScale3D(FVector(.24, .36, .44));
 		CrowdTorso[F.Group]->UpdateInstanceTransform(F.Idx, Tt, false, false, true);
-		FTransform Th; Th.SetLocation(F.Base + FVector(0, 0, 66 + Up)); Th.SetScale3D(FVector(.2));
+		FTransform Th; Th.SetLocation(F.Base + FVector(0, 0, 59 + Up)); Th.SetScale3D(FVector(.2));
 		CrowdHead->UpdateInstanceTransform(i, Th, false, false, true);
 	}
 	for (auto& C : CrowdTorso) if (C) C->MarkRenderStateDirty();
@@ -379,7 +379,7 @@ void APPArena::Build()
 	Fill->SetMobility(EComponentMobility::Movable);
 	Fill->SetRelativeLocation(ToUE(FPPVec(0.f, 6.f, 6.f)));
 	Fill->SetIntensityUnits(ELightUnits::Lumens);
-	Fill->SetIntensity(9000.f); Fill->SetAttenuationRadius(3500.f); Fill->SetCastShadows(false);
+	Fill->SetIntensity(15000.f); Fill->SetAttenuationRadius(3500.f); Fill->SetCastShadows(false);
 	Fill->SetLightColor(FLinearColor(1.f, .95f, .88f));
 	Fill->RegisterComponent(); Fill->SetVisibility(false);
 
