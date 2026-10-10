@@ -23,7 +23,7 @@ parquet con *clear coat* y los modelos 3D originales (arco, patín, careta, trib
 
 ## Rendimiento y calidad gráfica
 
-El proyecto arranca en calidad **Media** (Lumen para la iluminación global, sin ray tracing por hardware, 80 % de resolución con TSR).
+El proyecto arranca en calidad **Baja** (60 % de resolución, sin iluminación global, luz de relleno) para que ande fluido en cualquier PC.
 Para cambiarla, en el menú inicial tocá **9**: **Baja** (60 %, sin GI, luz de relleno — para placas modestas), **Media** o **Alta**
 (100 %, reflejos Lumen, sombras suaves en todas las luces). La pista usa pocas luces (6), componentes estáticos e instancias
 (hinchada, red, papelitos), así que es liviana.

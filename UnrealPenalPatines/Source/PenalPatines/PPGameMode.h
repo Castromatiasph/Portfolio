@@ -52,7 +52,7 @@ public:
 	UPROPERTY(BlueprintReadWrite, Category = "Partido") EPPShotMode ShotMode = EPPShotMode::Penal;
 	UPROPERTY(BlueprintReadWrite, Category = "Partido") EPPDifficulty Difficulty = EPPDifficulty::Primera;
 	UPROPERTY(BlueprintReadWrite, Category = "Partido") EPPGKStyle GoalieStyle = EPPGKStyle::Variado;
-	UPROPERTY(BlueprintReadWrite, Category = "Partido") EPPQuality Quality = EPPQuality::Media;
+	UPROPERTY(BlueprintReadWrite, Category = "Partido") EPPQuality Quality = EPPQuality::Baja;
 
 	// ---- estado ----
 	UPROPERTY(BlueprintReadOnly) EPPState State = EPPState::Menu;

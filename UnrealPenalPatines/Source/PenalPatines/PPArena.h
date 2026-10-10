@@ -64,7 +64,7 @@ private:
 	struct FConf { FVector P, V, W; FRotator R; int32 Group; int32 Idx; bool bOn; };
 	TArray<FConf> Conf;
 	float CheerT = 0.f, CheerAcc = 0.f, ConfT = 0.f;
-	EPPQuality CurQ = EPPQuality::Media;
+	EPPQuality CurQ = EPPQuality::Baja;
 
 	void Build();
 	UStaticMeshComponent* Box(const FVector& GamePos, const FVector& SizeM, float YawDeg, UMaterialInterface* Mat, const FLinearColor& Col, UStaticMesh* Mesh = nullptr);
