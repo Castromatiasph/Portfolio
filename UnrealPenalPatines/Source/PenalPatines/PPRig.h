@@ -52,7 +52,7 @@ private:
 	int32 UA[2] = { -1, -1 }, LA[2] = { -1, -1 }, Wr[2] = { -1, -1 }, UL[2] = { -1, -1 }, LL[2] = { -1, -1 }, Ft[2] = { -1, -1 }, Toe[2] = { -1, -1 };
 	FVector Fwd = FVector::XAxisVector, Right = FVector::YAxisVector, Up = FVector::ZAxisVector, Origin = FVector::ZeroVector;
 	float S = 1.f;                       // unidades del modelo por metro / 100
-	float ArmA[2] = {}, ArmB[2] = {}, LegA[2] = {}, LegB[2] = {}, FootLen[2] = {};
+	float ArmA[2] = {}, ArmB[2] = {}, LegA[2] = {}, LegB[2] = {}, FootLen[2] = {}, FootDrop[2] = {};
 
 	int32 Find(const TCHAR* Name) const;
 	void FK();

@@ -19,10 +19,22 @@
 namespace
 {
 	constexpr float HipY = .76f;
-	// el tobillo del jugador queda adentro del botín: a 18 cm del piso y a 7,5 cm del talón del patín
-	constexpr float AnkleSeatY = .18f, AnkleSeatZ = .075f;
-	// palo (SM_Palo): del tapón al fondo de la caña 1,19 m; la pala sale 19 cm hacia un costado desde ahí; la mano de arriba agarra 12 cm bajo el tapón
-	constexpr float StickCapToHand = .12f, StickShaft = 1.19f, BladeHalf = .19f, HandsGap = .28f;
+	// el tobillo del jugador queda adentro del botín, a 7,5 cm del talón del patín (la altura sale del alto del patín: AnkleSeatY)
+	constexpr float AnkleSeatZ = .075f;
+	// palo (SM_Palo, en metros desde el tapón): la caña baja por el eje y la pala (gancho) sale hacia adelante en la punta.
+	// Punto de la pala que toca la bocha: 1,20 m caña abajo y 17 cm hacia la punta. La mano de arriba agarra 12 cm bajo el tapón.
+	constexpr float StickCapToHand = .12f, ContactAlong = 1.20f, ContactToe = .17f, HandsGap = .28f;
+	// contorno de la pala (caña abajo, hacia la punta) para apoyarla justo sobre el piso
+	const float BladePts[6][2] = { { 1.23f, .10f }, { 1.23f, .275f }, { 1.20f, .275f }, { 1.15f, .04f }, { 1.10f, .016f }, { 1.15f, .26f } };
+
+	/** Hacia dónde apunta el gancho: hacia donde se inclina el palo (Lean, horizontal), perpendicular a la caña. */
+	FPPVec ToeFor(const FPPVec& D, const FPPVec* Lean = nullptr)
+	{
+		FPPVec H = Lean ? *Lean : FPPVec(D.X, 0.f, D.Z);
+		if (!Lean) H = H.SizeSquared() > 2.5e-3f ? H.GetSafeNormal() : FPPVec(0.f, 0.f, -1.f);
+		const FPPVec T = H - D * FPPVec::DotProduct(H, D);
+		return T.SizeSquared() > 1e-6f ? T.GetSafeNormal() : FPPVec(0.f, 0.f, -1.f);
+	}
 }
 
 APPShooter::APPShooter()
@@ -345,6 +357,7 @@ void APPShooter::ApplyVisual(float Dt, EPPState State)
 	FPPVec Hand(CurPose.H.X, HipY + CurPose.H.Y + .08f, CurPose.H.Z);   // +8 cm: el jugador está sobre los patines
 	FPPVec D = CurPose.D.GetSafeNormal();
 	float Pin = 0.f;
+	FPPVec PinLean(0.f, 0.f, -1.f);
 	switch (State)
 	{
 	case EPPState::Aim: Pin = 1.f; break;
@@ -368,26 +381,35 @@ void APPShooter::ApplyVisual(float Dt, EPPState State)
 				BallL = FPPVec(Dx * Ch - Dz * Sh, M->Ball->Pos.Y, Dx * Sh + Dz * Ch);
 			}
 		}
+		// el palo se inclina desde la mano hacia la bocha; el gancho queda en ese plano y la bocha toca la cara de la pala que mira al arco
 		const float BR = PP::BallR;
-		FPPVec H2(BallL.X - Hand.X, 0.f, BallL.Z - Hand.Z);
-		const FPPVec Lean = H2.SizeSquared() > 1e-4f ? H2.GetSafeNormal() : FPPVec(0.f, 0.f, -1.f);
-		FPPVec Toe(Lean.Z, 0.f, -Lean.X);                                        // la pala queda horizontal, de lado, de cara a la bocha
-		if (Toe.X > 0.f) Toe = -Toe;
-		const FPPVec BladeC(BallL.X - Lean.X * (BR + .0135f), BallL.Y, BallL.Z - Lean.Z * (BR + .0135f));
-		const FPPVec ShaftBase = BladeC - Toe * BladeHalf;                              // pie de la caña
-		const FPPVec Dir = (Hand - ShaftBase).GetSafeNormal();
-		const FPPVec HandP = ShaftBase + Dir * (StickShaft - StickCapToHand);
-		Hand = FMath::Lerp(Hand, HandP, Pin);
-		D = FMath::Lerp(D, -Dir, Pin).GetSafeNormal();
+		const FPPVec Lean = FPPVec(BallL.X - Hand.X, 0.f, BallL.Z - Hand.Z).GetSafeNormal();
+		FPPVec Face(-Lean.Z, 0.f, Lean.X);
+		if (Face.Z > 0.f) Face = -Face;
+		const FPPVec ContactP = FPPVec(BallL.X, .045f, BallL.Z) - Face * (BR + .0135f);
+		FPPVec Dp = D, Hp = Hand, Tp = ToeFor(D, &Lean);
+		for (int It = 0; It < 4; It++)
+		{
+			Tp = ToeFor(Dp, &Lean);
+			const FPPVec Axis = ContactP - Tp * ContactToe;                         // punto de la caña a la altura del contacto
+			Dp = (Axis - Hand).GetSafeNormal();
+			Hp = Axis - Dp * (ContactAlong - StickCapToHand);
+		}
+		// apoyar la pala justo sobre el piso
+		const FPPVec CapP = Hp - Dp * StickCapToHand;
+		float Low = 1e9f;
+		for (const auto& Bp : BladePts) Low = FMath::Min(Low, (CapP + Dp * Bp[0] + Tp * Bp[1]).Y);
+		Hp.Y -= Low;
+		Hand = FMath::Lerp(Hand, Hp, Pin);
+		D = FMath::Lerp(D, Dp, Pin).GetSafeNormal();
+		PinLean = Lean;
 	}
 	const FPPVec Cap = Hand - D * StickCapToHand;
 	const FPPVec TopGrip = Hand, LowGrip = Hand + D * HandsGap;
 	if (bRealStick)
 	{
-		// orientación: la caña sigue a D y la pala sale horizontal, perpendicular a la inclinación del palo
-		FPPVec Dh(D.X, 0.f, D.Z);
-		FPPVec Toe = Dh.SizeSquared() > 2.5e-3f ? FPPVec(Dh.Z, 0.f, -Dh.X).GetSafeNormal() : FPPVec(-1.f, 0.f, 0.f);
-		if (Toe.X > 0.f) Toe = -Toe;
+		// orientación: la caña sigue a D y el gancho apunta hacia donde se inclina el palo
+		const FPPVec Toe = ToeFor(D, Pin > .5f ? &PinLean : nullptr);
 		const FVector DirUE = PP::ToUE(D).GetSafeNormal(), ToeUE = PP::ToUE(Toe).GetSafeNormal();
 		const FQuat QLocal = FRotationMatrix::MakeFromZX(StickTipLocal, StickToeLocal).ToQuat();
 		const FQuat QWorld = FRotationMatrix::MakeFromZX(DirUE, ToeUE).ToQuat();
@@ -498,6 +520,7 @@ void APPShooter::BeginPlay()
 			SkateScale = float(30.0 / (2.0 * ExtLen));
 			for (auto& S : SkateC) if (S) { S->SetStaticMesh(SK2); S->EmptyOverrideMaterials(); }   // conserva los materiales importados
 			bRealSkate = true;
+			AnkleSeatY = FMath::Clamp(.55f * float(2.0 * B.BoxExtent.Z) * SkateScale / 100.f, .10f, .22f);
 		}
 	}
 	// palo real (SM_Palo: tapón en el origen, caña hacia abajo, pala hacia adelante); si falta, queda el palo provisorio

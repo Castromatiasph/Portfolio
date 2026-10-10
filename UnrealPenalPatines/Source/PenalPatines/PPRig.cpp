@@ -100,7 +100,9 @@ bool FPPRig::Init(UPPPoseMesh* M)
 		ArmA[s] = float((Pos(LA[s]) - Pos(UA[s])).Size()); ArmB[s] = float((Pos(Wr[s]) - Pos(LA[s])).Size());
 		LegA[s] = float((Pos(LL[s]) - Pos(UL[s])).Size()); LegB[s] = float((Pos(Ft[s]) - Pos(LL[s])).Size());
 		const FVector T = Pos(Toe[s]) - Pos(Ft[s]);
-		FootLen[s] = float((T - Up * FVector::DotProduct(T, Up)).Size());
+		FootLen[s] = float(T.Size());
+		const double Tv = FVector::DotProduct(T, Up);
+		FootDrop[s] = float(FMath::Atan2(-Tv, (T - Up * Tv).Size()));    // en reposo la punta del pie está más baja que el tobillo
 	}
 
 	// dedos y ejes de la mano (para cerrar el puño sobre el palo); si falta algún hueso, la mano queda abierta
@@ -178,7 +180,8 @@ void FPPRig::Pose(const FPPRigTargets& T)
 		const FVector K = Solve(Pos(UL[s]), At, LegA[s], LegB[s], Fwd + Right * (Side * .15));
 		Aim(UL[s], LL[s], K);
 		Aim(LL[s], Ft[s], At);
-		const FVector ToeDir = (Fwd * FMath::Cos(Pitch[s]) - Up * FMath::Sin(Pitch[s])).GetSafeNormal();
+		const float Pa = Pitch[s] + FootDrop[s];
+		const FVector ToeDir = (Fwd * FMath::Cos(Pa) - Up * FMath::Sin(Pa)).GetSafeNormal();
 		Aim(Ft[s], Toe[s], Pos(Ft[s]) + ToeDir * double(FootLen[s]));
 	}
 	Mesh->SetLocalPose(L);

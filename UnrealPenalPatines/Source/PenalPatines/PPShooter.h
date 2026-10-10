@@ -16,7 +16,7 @@ class APPGameMode;
 /** Pose del tiro en el espacio del torso (REST/BACK/FOLLOW del juego web). */
 struct FPPPose
 {
-	FPPVec H = FPPVec(-.07f, .12f, -.36f);  // mano de arriba
+	FPPVec H = FPPVec(-.18f, .12f, -.30f);  // mano de arriba
 	float Th = 0.f;                          // ángulo del palo (solo para el AnimBP)
 	FPPVec D = FPPVec(-.34f, -.84f, -.42f);  // dirección del palo (de la mano hacia la pala), espacio del torso
 	float Tw = 0.f;                          // giro de hombros
@@ -78,7 +78,7 @@ public:
 	FPPPose CurPose, ContactPose, SwingStart;
 	float SwingT = 0.f, Contact = .12f, SwingEnd = .42f;
 	EPPShotKind ShotKind = EPPShotKind::Golpe;
-	FPPVec BallLocal = FPPVec(-.45f, PP::BallR, -.8f);
+	FPPVec BallLocal = FPPVec(-.62f, PP::BallR, -.42f);   // la bocha va al costado izquierdo, adelante
 	FPPVec BallLocalPress;
 	float DribA = 0.f, DribP = 0.f, DribVal = 0.f;   // vaivén de la bocha al conducir
 	float LastPin = 0.f, ReplayPin = 0.f;            // cuánto está la pala "pegada" a la bocha (0..1)
@@ -141,6 +141,7 @@ private:
 	/** Diagnóstico: dibuja esferas en cabeza, manos y pies del esqueleto y muestra datos del modelo en pantalla. */
 	UPROPERTY(EditAnywhere, Category = "Debug") bool bDebugRig = false;
 	float DbgT = 0.f;
+	float AnkleSeatY = .168f;   // altura del tobillo dentro del botín (55% del alto del patín)
 	bool bRealSkate = false; float SkateScale = 1.f, SkateYaw = 0.f; FVector SkateToeLocal = FVector::XAxisVector;   // patín real (SM_PatinReal)
 	bool bRealStick = false; float StickScale = 1.f; FVector StickTipLocal = -FVector::ZAxisVector, StickToeLocal = FVector::XAxisVector;   // palo real (SM_Palo)
 	FPPVec CamLookG = FPPVec(0.f, .62f, .4f);

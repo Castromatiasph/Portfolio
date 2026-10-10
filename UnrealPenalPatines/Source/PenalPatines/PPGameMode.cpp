@@ -104,7 +104,7 @@ void APPGameMode::Fire(const TCHAR* Name, float Param, const FPPVec* G)
 
 FPPVec APPGameMode::StartPos() const
 {
-	const FPPVec BL = Shooter ? Shooter->BallLocal : FPPVec(-.45f, BallR, -.8f);
+	const FPPVec BL = Shooter ? Shooter->BallLocal : FPPVec(-.62f, BallR, -.42f);
 	return FPPVec(-BL.X, 0.f, SpotZ() - BL.Z);   // la bocha arranca sobre el punto elegido
 }
 

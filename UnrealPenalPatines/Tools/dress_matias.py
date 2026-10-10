@@ -62,6 +62,7 @@ while off < len(b):
 mesh = [m for m in js["meshes"] if m["name"] == "base"][0]; pr = mesh["primitives"][0]
 P = acc(pr["attributes"]["POSITION"]).astype(np.float32)
 UV = acc(pr["attributes"]["TEXCOORD_0"]).astype(np.float32)
+NRM = acc(pr["attributes"]["NORMAL"]).astype(np.float32)
 J = acc(pr["attributes"]["JOINTS_0"]).astype(np.int32)
 Wt = acc(pr["attributes"]["WEIGHTS_0"]).astype(np.float32)
 IDX = acc(pr["indices"]).astype(np.int64).reshape(-1, 3)
@@ -85,8 +86,8 @@ for k in range(4):
         field[:, ci] += Wt[:, k] * m
 
 # ---- rasterizar atributos (posición + campos) en el espacio UV a 2048 ----
-R = 2048
-attr = np.concatenate([P, field], axis=1)               # x,y,z + 6 campos
+R = 4096
+attr = np.concatenate([P, field, NRM], axis=1)          # x,y,z + 6 campos + normal
 buf = np.zeros((R, R, attr.shape[1]), np.float32); cov = np.zeros((R, R), bool)
 uvp = UV * R
 for tri in IDX:
@@ -106,6 +107,7 @@ for tri in IDX:
     sub = buf[y0:y1 + 1, x0:x1 + 1]; sub[m] = val[m]; cov[y0:y1 + 1, x0:x1 + 1] |= m
 X, Y, Z = buf[..., 0], buf[..., 1], buf[..., 2]
 F = {c: buf[..., 3 + i] for i, c in enumerate(CL)}
+NZ = buf[..., 3 + len(CL) + 2]
 
 NAVY = np.array([31, 38, 87], np.float32); SKY = np.array([58, 154, 217], np.float32); WHITE = np.array([228, 232, 238], np.float32); BLACK = np.array([14, 15, 18], np.float32)
 col = np.zeros((R, R, 3), np.float32); mask = np.zeros((R, R), np.float32)
@@ -115,8 +117,9 @@ def paint(sel, color):
 jersey = ((F["torso"] > .5) & (Y > .90) & (Y < 1.5)) | ((F["sleeve"] > .5) & (np.abs(X) < .45))
 paint(jersey, NAVY)
 body = jersey & (F["torso"] > .5) & (np.abs(X) < .24)
-paint(body & (Y > 1.05) & (Y < 1.09), WHITE); paint(body & (Y >= 1.09) & (Y < 1.20), SKY); paint(body & (Y >= 1.20) & (Y < 1.24), WHITE)
-paint(body & (Y < .94), WHITE)
+# camiseta del club (como la foto): franja blanca, franja ancha celeste con el sponsor, franja blanca; cuello blanco
+paint(body & (Y > 1.085) & (Y < 1.115), WHITE); paint(body & (Y >= 1.115) & (Y < 1.235), SKY); paint(body & (Y >= 1.235) & (Y < 1.265), WHITE)
+paint(jersey & (F["torso"] > .5) & (Y > 1.462) & (Y < 1.5) & (np.abs(X) < .16), WHITE)
 paint((F["sleeve"] > .5) & (np.abs(X) >= .36) & (np.abs(X) < .38), WHITE)
 # short con vivo, medias con franja, patines y guantes
 shorts = ((F["shorts"] > .4) | ((Y > .60) & (Y < .97))) & (Y > .56) & (Y < .97) & (np.abs(X) < .27) & ~jersey & (F["glove"] < .5) & (F["sock"] < .5) & cov
@@ -136,6 +139,50 @@ shade = (0.88 + 0.24 * (lum - lum.mean()))[..., None]
 cloth = np.clip(np.asarray(col_img, np.float32) * shade, 0, 255)
 m4 = (np.asarray(mask_img, np.float32) / 255.0)[..., None]
 res = np.asarray(skin_img, np.float32) * (1 - m4) + cloth * m4
+# ---- logos al frente (sponsor en la franja celeste, marca y escudo en el pecho), proyectados de frente sobre el torso ----
+def up(a):
+    return np.asarray(Image.fromarray(a.astype(np.float32), mode="F").resize((4096, 4096), Image.BILINEAR))
+X4, Y4, NZ4 = up(X), up(Y), up(NZ)
+front4 = up(((F["torso"] > .5) & jersey & cov).astype(np.float32)) > .5
+front4 &= NZ4 > .35
+PX = 4000.0                                                # píxeles por metro en el plano del frente
+x0, x1, y0, y1 = -.26, .26, 1.0, 1.5
+W_, H_ = int((x1 - x0) * PX), int((y1 - y0) * PX)
+logo = Image.new("L", (W_, H_), 0); dr = ImageDraw.Draw(logo)
+def font(sz, bold=True):
+    for f in ("DejaVuSans-Bold.ttf" if bold else "DejaVuSans.ttf", "LiberationSans-Bold.ttf", "arial.ttf"):
+        for d in ("/usr/share/fonts/truetype/dejavu/", "/usr/share/fonts/truetype/liberation/", "C:/Windows/Fonts/", ""):
+            try: return ImageFont.truetype(d + f, sz)
+            except Exception: pass
+    return ImageFont.load_default()
+def at(x, y): return ((x - x0) * PX, (y1 - y) * PX)
+def text_c(cx, cy, t, sz, bold=True, spacing=0):
+    f = font(int(sz * PX)); bb = dr.textbbox((0, 0), t, font=f)
+    w = bb[2] - bb[0] + spacing * (len(t) - 1) * PX; px, py = at(cx, cy)
+    if spacing == 0: dr.text((px - w / 2 - bb[0], py - (bb[3] - bb[1]) / 2 - bb[1]), t, font=f, fill=255)
+    else:
+        x = px - w / 2
+        for ch in t:
+            cb = dr.textbbox((0, 0), ch, font=f); dr.text((x - cb[0], py - (bb[3] - bb[1]) / 2 - bb[1]), ch, font=f, fill=255); x += cb[2] - cb[0] + spacing * PX
+text_c(0.0, 1.183, "AJEC", .062)
+text_c(0.0, 1.133, "AUTOADHESIVOS", .02, bold=True, spacing=.002)
+# marca (pecho derecho del jugador = izquierda de la foto) y escudo (pecho izquierdo)
+cx, cy = -.09, 1.37
+px, py = at(cx, cy + .02); r = .02 * PX
+dr.rounded_rectangle((px - r, py - r, px + r, py + r), radius=r * .35, fill=255)
+dr.rounded_rectangle((px - r * .55, py - r * .55, px + r * .55, py + r * .55), radius=r * .2, fill=0)
+dr.ellipse((px - r * .22, py - r * .22, px + r * .22, py + r * .22), fill=255)
+text_c(cx, cy - .022, "CALOU", .022)
+sx, sy = .09, 1.37; s0 = .032 * PX; px, py = at(sx, sy)
+shield = [(px - s0 * .8, py - s0), (px + s0 * .8, py - s0), (px + s0 * .8, py + s0 * .15), (px, py + s0), (px - s0 * .8, py + s0 * .15)]
+dr.polygon(shield, fill=255)
+dr.polygon([(px - s0 * .5, py - s0 * .7), (px + s0 * .5, py - s0 * .7), (px + s0 * .5, py + s0 * .1), (px, py + s0 * .65), (px - s0 * .5, py + s0 * .1)], fill=0)
+dr.ellipse((px - s0 * .25, py - s0 * .45, px + s0 * .25, py + s0 * .05), fill=255)
+la = np.asarray(logo, np.float32) / 255.0
+u = np.clip((X4 - x0) * PX, 0, W_ - 1).astype(np.int32)      # visto de frente, +X del modelo (su izquierda) queda a la derecha de la imagen
+v = np.clip((y1 - Y4) * PX, 0, H_ - 1).astype(np.int32)
+k = la[v, u] * front4 * (X4 > x0) * (X4 < x1) * (Y4 > y0) * (Y4 < y1)
+res = res * (1 - k[..., None]) + np.array([240, 243, 248], np.float32) * k[..., None]
 Image.fromarray(np.clip(res, 0, 255).astype(np.uint8)).save(os.path.join(OUT, "T_Matias_BaseColor.png"))
 prev = Image.open(os.path.join(OUT, "T_Matias_BaseColor.png")); prev.thumbnail((1000, 1000)); prev.save(os.path.join(HERE, "..", "SourceAssets", "Textures", "Matias", "_preview.png"))
 print("ok T_Matias_BaseColor.png")
