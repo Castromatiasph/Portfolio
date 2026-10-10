@@ -2,6 +2,7 @@
 (~2 MB en lugar de 28 MB). Las texturas vestidas las genera Tools/dress_matias.py y se asignan desde el juego.
 Uso: python Tools/prepare_matias_mesh.py"""
 import json, struct, os, copy
+import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(HERE, "..", "SourceAssets", "Models", "Matias_175cm.glb")
@@ -14,6 +15,78 @@ while off < len(b):
     if ct == b"JSON": js = json.loads(b[off + 8:off + 8 + cl])
     elif ct == b"BIN\0": bo = off + 8
     off += 8 + cl
+
+# 0) "hornear" los morph targets con sus pesos por defecto (cara de Matías y forma del cuerpo): sin esto la cara queda deforme
+b = bytearray(b)
+def raw(v, off0, count, comp, dt):
+    v = js["bufferViews"][v]; off = bo + v.get("byteOffset", 0) + off0
+    return np.frombuffer(bytes(b[off:off + count * comp * np.dtype(dt).itemsize]), dtype=dt).reshape(count, comp) if comp > 1 else \
+        np.frombuffer(bytes(b[off:off + count * np.dtype(dt).itemsize]), dtype=dt)
+def read3(acc):
+    a = js["accessors"][acc]
+    if "bufferView" in a:
+        v = js["bufferViews"][a["bufferView"]]
+        st = v.get("byteStride", 12); off = bo + v.get("byteOffset", 0) + a.get("byteOffset", 0)
+        out = np.stack([np.frombuffer(bytes(b[off + i * st:off + i * st + 12]), dtype="<f4") for i in range(a["count"])]).astype(np.float64)
+    else:
+        out, off, st = np.zeros((a["count"], 3)), 0, 12
+    sp = a.get("sparse")
+    if sp:                                                              # accessor "disperso": solo trae los vértices que cambian
+        ix, vl = sp["indices"], sp["values"]
+        idx = raw(ix["bufferView"], ix.get("byteOffset", 0), sp["count"], 1, {5121: "u1", 5123: "<u2", 5125: "<u4"}[ix["componentType"]]).astype(np.int64)
+        val = raw(vl["bufferView"], vl.get("byteOffset", 0), sp["count"], 3, "<f4").astype(np.float64)
+        out[idx] = val
+    return out, off, st
+def write3(acc, arr, off, st):
+    for i in range(len(arr)): b[off + i * st:off + i * st + 12] = arr[i].astype("<f4").tobytes()
+for m in js["meshes"]:
+    w = m.get("weights") or []
+    for p in m["primitives"]:
+        tg = p.get("targets")
+        if not tg or not w: continue
+        P, po, ps = read3(p["attributes"]["POSITION"])
+        N, no, ns = read3(p["attributes"]["NORMAL"]) if "NORMAL" in p["attributes"] else (None, 0, 0)
+        for wi, t in zip(w, tg):
+            if abs(wi) < 1e-6: continue
+            if "POSITION" in t: P += wi * read3(t["POSITION"])[0]
+            if N is not None and "NORMAL" in t: N += wi * read3(t["NORMAL"])[0]
+        write3(p["attributes"]["POSITION"], P, po, ps)
+        acc = js["accessors"][p["attributes"]["POSITION"]]; acc["min"] = P.min(0).tolist(); acc["max"] = P.max(0).tolist()
+        if N is not None:
+            N /= np.maximum(np.linalg.norm(N, axis=1, keepdims=True), 1e-9)
+            write3(p["attributes"]["NORMAL"], N, no, ns)
+        print("morphs horneados:", m["name"], len(tg), "targets")
+
+# 0b) el cuerpo trae pegada una "túnica" (malla de ropa de ~740 vértices que cubre las piernas): se la saca para que se vean las piernas desnudas
+def drop_robe(p):
+    pa = js["accessors"][p["attributes"]["POSITION"]]
+    P, _, _ = read3(p["attributes"]["POSITION"])
+    ia = js["accessors"][p["indices"]]; iv = js["bufferViews"][ia["bufferView"]]
+    dt = {5123: "<u2", 5125: "<u4"}[ia["componentType"]]; ioff = bo + iv.get("byteOffset", 0) + ia.get("byteOffset", 0)
+    I = np.frombuffer(bytes(b[ioff:ioff + ia["count"] * np.dtype(dt).itemsize]), dtype=dt).reshape(-1, 3).astype(np.int64)
+    par = np.arange(len(P))
+    def find(x):
+        while par[x] != x: par[x] = par[par[x]]; x = par[x]
+        return x
+    for t in I:
+        r = find(t[0])
+        for v in t[1:]: par[find(v)] = r
+    roots = np.array([find(i) for i in range(len(P))])
+    keep = np.ones(len(I), bool); dropped = 0
+    for r in np.unique(roots[np.unique(I)]):
+        m = roots == r
+        y0, y1 = P[m, 1].min(), P[m, 1].max(); xw = P[m, 0].max() - P[m, 0].min()
+        if m.sum() > 300 and 0.05 < y0 < 0.25 and 0.8 < y1 < 1.25 and xw > 0.4:       # largo de rodilla a cintura y ancho de cadera: la túnica
+            keep &= ~m[I[:, 0]]; dropped += 1
+        elif m.sum() <= 70:                                               # tiras de "pelo", bolitas junto a los ojos y piezas sueltas pegadas al cuerpo
+            keep &= ~m[I[:, 0]]; dropped += 1
+    out = I[keep].astype(dt).ravel()
+    b[ioff:ioff + out.nbytes] = out.tobytes()
+    ia["count"] = int(out.size)
+    print("túnica: componentes quitados =", dropped, " triángulos", len(I), "->", int(keep.sum()))
+for m in js["meshes"]:
+    for p in m["primitives"]:
+        if m["name"] == "base": drop_robe(p)
 
 # 1) quitar morph targets
 for m in js["meshes"]:

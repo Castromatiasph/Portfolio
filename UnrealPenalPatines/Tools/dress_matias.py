@@ -50,7 +50,15 @@ for mname, label in (("Human.eyebrow001", "Brow"), ("Human.eyelashes01", "Lash")
     if i is not None:
         im = Image.open(names[i]); im.thumbnail((1024, 1024)); im.save(os.path.join(OUT, "T_Matias_%s.png" % label)); print("ok", label)
 
-# ---- malla del cuerpo: posiciones, UV, pesos ----
+# ---- malla del cuerpo: posiciones, UV, pesos (del SK_Matias.glb ya preparado: morphs horneados y sin la túnica) ----
+GLB = os.path.join(HERE, "..", "SourceAssets", "Models", "SK_Matias.glb")
+b = open(GLB, "rb").read()
+off = 12
+while off < len(b):
+    cl, ct = struct.unpack("<I4s", b[off:off + 8])
+    if ct == b"JSON": js = json.loads(b[off + 8:off + 8 + cl])
+    elif ct == b"BIN\0": bo = off + 8
+    off += 8 + cl
 mesh = [m for m in js["meshes"] if m["name"] == "base"][0]; pr = mesh["primitives"][0]
 P = acc(pr["attributes"]["POSITION"]).astype(np.float32)
 UV = acc(pr["attributes"]["TEXCOORD_0"]).astype(np.float32)
