@@ -15,7 +15,6 @@
 		{ "Name": "PythonScriptPlugin", "Enabled": true },
 		{ "Name": "EditorScriptingUtilities", "Enabled": true },
 		{ "Name": "InterchangeEditor", "Enabled": true },
-		{ "Name": "GLTFImporter", "Enabled": true },
 		{ "Name": "ModelingToolsEditorMode", "Enabled": true, "TargetAllowList": [ "Editor" ] }
 	],
 	"TargetPlatforms": [ "Windows" ]
