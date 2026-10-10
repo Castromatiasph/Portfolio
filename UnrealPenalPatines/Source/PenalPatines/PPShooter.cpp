@@ -2,6 +2,7 @@
 #include "PPGameMode.h"
 #include "PPBall.h"
 #include "PPMaterial.h"
+#include "PPAssets.h"
 #include "PPPoseMesh.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/Texture2D.h"
@@ -420,7 +421,9 @@ void APPShooter::BeginPlay()
 	for (auto& A : ArmC) Col(A, FLinearColor(.45f, .28f, .2f), .55f);
 	Col(StickMesh, FLinearColor(.75f, .55f, .3f), .4f);                     // palo de madera
 	// patines reales (SM_PatinReal: origen en el tobillo, ruedas apoyadas en y=0, punta hacia adelante, 30 cm de largo)
-	if (UStaticMesh* SK2 = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/Models/SM_PatinReal.SM_PatinReal")))
+	UStaticMesh* SK2 = PP::FindAsset<UStaticMesh>(TEXT("/Game/Models"), TEXT("PatinReal"));
+	if (!SK2) PP::ScreenWarn(TEXT("No encontré el patín (SM_PatinReal) en Content/Models. Corré Tools/setup_level.py o importá SourceAssets/Models/SM_PatinReal.glb."));
+	if (SK2)
 	{
 		const FBoxSphereBounds B = SK2->GetBounds();
 		if (B.BoxExtent.X > 1.0)
@@ -431,7 +434,9 @@ void APPShooter::BeginPlay()
 		}
 	}
 	// palo real (SM_Palo: tapón en el origen, caña hacia abajo, pala hacia adelante); si falta, queda el palo provisorio
-	if (UStaticMesh* SM = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/Models/SM_Palo.SM_Palo")))
+	UStaticMesh* SM = PP::FindAsset<UStaticMesh>(TEXT("/Game/Models"), TEXT("SM_Palo"));
+	if (!SM) PP::ScreenWarn(TEXT("No encontré el palo (SM_Palo) en Content/Models. Corré Tools/setup_level.py o importá SourceAssets/Models/SM_Palo.glb."));
+	if (SM)
 	{
 		const FBoxSphereBounds B = SM->GetBounds();
 		if (B.BoxExtent.Z > 1.0)
@@ -445,10 +450,12 @@ void APPShooter::BeginPlay()
 		}
 	}
 	// ---- Matías (SK_Matias) posado por código ----
-	if (USkeletalMesh* SK = LoadObject<USkeletalMesh>(nullptr, TEXT("/Game/Models/SK_Matias.SK_Matias")))
+	USkeletalMesh* SK = PP::FindAsset<USkeletalMesh>(TEXT("/Game/Models"), TEXT("Matias"));
+	if (!SK) PP::ScreenWarn(TEXT("No encontré a Matías (SK_Matias) en Content/Models. Corré Tools/setup_level.py o importá SourceAssets/Models/SK_Matias.glb."));
+	if (SK)
 	{
 		BodyMesh->SetSkinnedAssetAndUpdate(SK, true);
-		auto Tex = [](const TCHAR* N) { return LoadObject<UTexture>(nullptr, *FString::Printf(TEXT("/Game/Textures/Matias/%s.%s"), N, N)); };
+		auto Tex = [](const TCHAR* N) -> UTexture* { return PP::FindAsset<UTexture2D>(TEXT("/Game/Textures"), N); };
 		const TArray<FName> Slots = BodyMesh->GetMaterialSlotNames();
 		for (int32 i = 0; i < Slots.Num(); i++)
 		{

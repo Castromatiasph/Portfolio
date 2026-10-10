@@ -166,7 +166,7 @@ try:
     import_files([os.path.join(SRC, "Models", "SK_Matias.glb")], "/Game/Models")
     if not eal.does_asset_exist("/Game/Models/SK_Matias"):
         reg = unreal.AssetRegistryHelpers.get_asset_registry()
-        for a_ in reg.get_assets_by_path("/Game/Models", recursive=False):
+        for a_ in reg.get_assets_by_path("/Game/Models", recursive=True):
             if str(a_.asset_class_path.asset_name) == "SkeletalMesh":
                 eal.rename_asset(str(a_.package_name), "/Game/Models/SK_Matias")
                 break
@@ -175,7 +175,7 @@ try:
     import_files([os.path.join(SRC, "Models", "SM_Palo.glb")], "/Game/Models")
     if not eal.does_asset_exist("/Game/Models/SM_Palo"):
         reg = unreal.AssetRegistryHelpers.get_asset_registry()
-        for a_ in reg.get_assets_by_path("/Game/Models", recursive=False):
+        for a_ in reg.get_assets_by_path("/Game/Models", recursive=True):
             if str(a_.asset_class_path.asset_name) == "StaticMesh" and "palo" in str(a_.asset_name).lower():
                 eal.rename_asset(str(a_.package_name), "/Game/Models/SM_Palo")
                 break
@@ -184,7 +184,7 @@ try:
     import_files([os.path.join(SRC, "Models", "SM_PatinReal.glb")], "/Game/Models")
     if not eal.does_asset_exist("/Game/Models/SM_PatinReal"):
         reg = unreal.AssetRegistryHelpers.get_asset_registry()
-        for a_ in reg.get_assets_by_path("/Game/Models", recursive=False):
+        for a_ in reg.get_assets_by_path("/Game/Models", recursive=True):
             if str(a_.asset_class_path.asset_name) == "StaticMesh" and "patin" in str(a_.asset_name).lower():
                 eal.rename_asset(str(a_.package_name), "/Game/Models/SM_PatinReal")
                 break
