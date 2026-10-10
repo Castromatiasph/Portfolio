@@ -12,8 +12,15 @@ class PENALPATINES_API UPPPoseMesh : public UPoseableMeshComponent
 public:
 	void SetLocalPose(const TArray<FTransform>& Local)
 	{
+		for (const FTransform& T : Local) if (T.ContainsNaN()) return;   // pose inválida: se conserva la anterior
 		BoneSpaceTransforms = Local;
 		MarkRefreshTransformDirty();
 		RefreshBoneTransforms(nullptr);
+	}
+	/** Posición en el mundo de un hueso (espacio de componente -> mundo). */
+	FVector BoneWorld(int32 BoneIndex) const
+	{
+		const TArray<FTransform>& CS = GetComponentSpaceTransforms();
+		return CS.IsValidIndex(BoneIndex) ? GetComponentTransform().TransformPosition(CS[BoneIndex].GetLocation()) : FVector::ZeroVector;
 	}
 };

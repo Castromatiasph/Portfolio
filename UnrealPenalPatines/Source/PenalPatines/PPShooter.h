@@ -133,6 +133,9 @@ private:
 
 	float Braking = 0.f, BrakeK = 0.f, StartK = 0.f, HipSway = 0.f;
 	FPPRig Rig; bool bRig = false;
+	/** Diagnóstico: dibuja esferas en cabeza, manos y pies del esqueleto y muestra datos del modelo en pantalla. */
+	UPROPERTY(EditAnywhere, Category = "Debug") bool bDebugRig = true;
+	float DbgT = 0.f;
 	bool bRealSkate = false; float SkateScale = 1.f;   // patín real (SM_PatinReal)
 	bool bRealStick = false; float StickShaftSign = -1.f, StickToeSign = 1.f, StickScale = 1.f;   // palo real (SM_Palo)
 	FPPVec CamLookG = FPPVec(0.f, .62f, .4f);

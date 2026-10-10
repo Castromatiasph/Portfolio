@@ -3,6 +3,7 @@
 #include "PPBall.h"
 #include "PPMaterial.h"
 #include "PPAssets.h"
+#include "DrawDebugHelpers.h"
 #include "PPPoseMesh.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/Texture2D.h"
@@ -473,6 +474,8 @@ void APPShooter::BeginPlay()
 		if (Rig.Init(BodyMesh))
 		{
 			bRig = true;
+			PP::ScreenWarn(FString::Printf(TEXT("Matías: esqueleto OK (%d huesos), escala del componente %.3f, pelvis en reposo %.2f m"), SK->GetRefSkeleton().GetNum(), Rig.CompScale, Rig.PelvisRestH));
+			BodyMesh->SetBoundsScale(4.f);
 			BodyMesh->SetRelativeRotation(Rig.CompRot.Rotator());
 			BodyMesh->SetRelativeLocation(Rig.CompLoc);
 			BodyMesh->SetRelativeScale3D(FVector(Rig.CompScale));
@@ -498,6 +501,23 @@ void APPShooter::CamReplay(float Dt, const FPPVec& B)
 void APPShooter::Tick(float Dt)
 {
 	Super::Tick(Dt);
+	if (bDebugRig && bRig && BodyMesh && GEngine)
+	{
+		DbgT += Dt;
+		const FVector Hd = BodyMesh->BoneWorld(Rig.BoneHead());
+		DrawDebugSphere(GetWorld(), Hd, 6.f, 8, FColor::Red);
+		for (int s = 0; s < 2; s++)
+		{
+			DrawDebugSphere(GetWorld(), BodyMesh->BoneWorld(Rig.BoneWrist(s)), 4.f, 8, FColor::Green);
+			DrawDebugSphere(GetWorld(), BodyMesh->BoneWorld(Rig.BoneFoot(s)), 4.f, 8, FColor::Cyan);
+		}
+		if (DbgT < 20.f)
+		{
+			const FBoxSphereBounds Bn = BodyMesh->Bounds;
+			GEngine->AddOnScreenDebugMessage(701, 0.f, FColor::Yellow, FString::Printf(TEXT("[Matías] visible=%d materiales=%d  bounds centro=%s extensión=%s  cabeza=%s  actor=%s"),
+				BodyMesh->IsVisible() ? 1 : 0, BodyMesh->GetNumMaterials(), *Bn.Origin.ToString(), *Bn.BoxExtent.ToString(), *Hd.ToString(), *GetActorLocation().ToString()));
+		}
+	}
 	// el resto (estado, bocha, tiro) lo orquesta APPGameMode::Tick; acá solo la entrada continua del mouse/stick
 	APPGameMode* M = Match(); if (!M) return;
 	if (M->UserShoots() && (M->State == EPPState::Aim || M->State == EPPState::Charge))
