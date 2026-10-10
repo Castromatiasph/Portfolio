@@ -1,6 +1,7 @@
 #include "PPGoalkeeper.h"
 #include "PPBall.h"
 #include "PPShooter.h"
+#include "PPMaterial.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "UObject/ConstructorHelpers.h"
@@ -54,6 +55,18 @@ APPGoalkeeper::APPGoalkeeper()
 	BodyMesh->SetupAttachment(Root);
 	BodyMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 	Diff = FPPDiff::Make(EPPDifficulty::Primera);
+}
+
+void APPGoalkeeper::BeginPlay()
+{
+	Super::BeginPlay();
+	auto Col = [&](UStaticMeshComponent* C, FLinearColor K, float R = .6f) { if (C) C->SetMaterial(0, PP::ColorMID(this, K, R)); };
+	Col(Torso, FLinearColor(.05f, .10f, .45f));      // camiseta
+	Col(Head, FLinearColor(.01f, .01f, .012f), .3f); // careta negra
+	for (auto& P : Pads) Col(P, FLinearColor(.015f, .015f, .02f));
+	Col(Glove, FLinearColor(.9f, .9f, .92f), .5f);
+	Col(Blocker, FLinearColor(.02f, .02f, .025f));
+	Col(Stick, FLinearColor(.75f, .55f, .3f), .4f);
 }
 
 void APPGoalkeeper::PickStyle()

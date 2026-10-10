@@ -31,7 +31,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Look") TObjectPtr<UStaticMesh> GoalMesh;                 // SM_Arco importado (con red)
 	UPROPERTY(EditAnywhere, Category = "Look") float GoalMeshYaw = 180.f;                         // corrige el eje del importador glTF
 	UPROPERTY(EditAnywhere, Category = "Look") TObjectPtr<UStaticMesh> SeatMesh;                  // SM_Butaca importado
-	UPROPERTY(EditAnywhere, Category = "Look") float LightLumens = 4500.f;
+	UPROPERTY(EditAnywhere, Category = "Look") float LightLumens = 3000.f;
 	UPROPERTY(EditAnywhere, Category = "Look") bool bSpawnPostProcess = true;
 
 private:

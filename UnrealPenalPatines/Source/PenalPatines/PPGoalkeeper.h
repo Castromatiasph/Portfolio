@@ -24,6 +24,7 @@ class PENALPATINES_API APPGoalkeeper : public AActor
 	GENERATED_BODY()
 public:
 	APPGoalkeeper();
+	virtual void BeginPlay() override;
 
 	// ---- estado (espacio de juego, metros) ----
 	FPPVec2 Pos = FPPVec2(0.f, 0.42f);  // x, z

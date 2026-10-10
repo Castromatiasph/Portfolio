@@ -1,5 +1,6 @@
 #include "PPArena.h"
 #include "PPTypes.h"
+#include "PPMaterial.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/RectLightComponent.h"
 #include "Components/PostProcessComponent.h"
@@ -20,11 +21,8 @@ void APPArena::OnConstruction(const FTransform& Xf) { Super::OnConstruction(Xf);
 UMaterialInterface* APPArena::Tint(UMaterialInterface* Override, const FLinearColor& Col)
 {
 	if (Override) return Override;
-	UMaterialInterface* Base = LoadObject<UMaterialInterface>(nullptr, TEXT("/Engine/BasicShapes/BasicShapeMaterial.BasicShapeMaterial"));
-	if (!Base) return nullptr;
-	UMaterialInstanceDynamic* M = UMaterialInstanceDynamic::Create(Base, this);
-	M->SetVectorParameterValue(TEXT("Color"), Col);
-	return M;
+	const bool bEmit = Col.R > 1.f || Col.G > 1.f || Col.B > 1.f;   // las luminarias se dibujan como emisivas
+	return PP::ColorMID(this, bEmit ? FLinearColor::Black : Col, .5f, bEmit ? Col : FLinearColor::Black);
 }
 
 UStaticMeshComponent* APPArena::Box(const FVector& G, const FVector& S, float YawDeg, UMaterialInterface* Mat, const FLinearColor& Col, UStaticMesh* Mesh)
@@ -135,7 +133,7 @@ void APPArena::Build()
 		Rl->SetAttenuationRadius(2400.f);
 		Rl->SetCastShadows(true);
 		// luminaria visible
-		Box(FVector(i * 7.f, 10.45f, -2.f + j * 7.f), FVector(1.8f, .05f, .6f), 0.f, nullptr, FLinearColor(8.f, 7.4f, 6.6f));
+		Box(FVector(i * 7.f, 10.45f, -2.f + j * 7.f), FVector(1.8f, .05f, .6f), 0.f, nullptr, FLinearColor(3.f, 2.8f, 2.5f));
 	}
 
 	// arco reglamentario: 1,70 × 1,05 m, naranja fluorescente
@@ -172,9 +170,9 @@ void APPArena::Build()
 		S.bOverride_LumenFinalGatherQuality = true; S.LumenFinalGatherQuality = 2.f;
 		S.bOverride_LumenSceneDetail = true; S.LumenSceneDetail = 2.f;
 		S.bOverride_AutoExposureMethod = true; S.AutoExposureMethod = EAutoExposureMethod::AEM_Histogram;
-		S.bOverride_AutoExposureBias = true; S.AutoExposureBias = -0.5f;
-		S.bOverride_AutoExposureMinBrightness = true; S.AutoExposureMinBrightness = .3f;
-		S.bOverride_AutoExposureMaxBrightness = true; S.AutoExposureMaxBrightness = 3.f;
+		S.bOverride_AutoExposureBias = true; S.AutoExposureBias = 0.f;
+		S.bOverride_AutoExposureMinBrightness = true; S.AutoExposureMinBrightness = 4.f;     // EV100 (rango extendido, ver DefaultEngine.ini)
+		S.bOverride_AutoExposureMaxBrightness = true; S.AutoExposureMaxBrightness = 12.f;
 		S.bOverride_BloomIntensity = true; S.BloomIntensity = .25f;
 		S.bOverride_MotionBlurAmount = true; S.MotionBlurAmount = .35f;
 		S.bOverride_VignetteIntensity = true; S.VignetteIntensity = .35f;

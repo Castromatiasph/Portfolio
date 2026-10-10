@@ -1,5 +1,6 @@
 #include "PPBall.h"
 #include "PPTypes.h"
+#include "PPMaterial.h"
 #include "Components/StaticMeshComponent.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Engine/StaticMesh.h"
@@ -15,6 +16,12 @@ APPBall::APPBall()
 	if (Sphere.Succeeded()) Mesh->SetStaticMesh(Sphere.Object);
 	// la esfera básica mide 100 cm de diámetro; la bocha, 7,3 cm
 	Mesh->SetWorldScale3D(FVector(PP::BallR * 2.f));
+}
+
+void APPBall::BeginPlay()
+{
+	Super::BeginPlay();
+	Mesh->SetMaterial(0, PP::ColorMID(this, FLinearColor(.02f, .02f, .025f), .25f));   // bocha negra y brillante
 }
 
 void APPBall::SyncActor()

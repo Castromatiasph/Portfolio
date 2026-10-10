@@ -37,6 +37,7 @@ class PENALPATINES_API APPShooter : public APawn
 	GENERATED_BODY()
 public:
 	APPShooter();
+	virtual void BeginPlay() override;
 	virtual void Tick(float Dt) override;
 	virtual void SetupPlayerInputComponent(UInputComponent* Input) override;
 

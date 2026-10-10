@@ -119,6 +119,25 @@ def flat(name, color, rough, metal=0.0):
 
 
 try:
+    mc = make_material("M_Color")
+    ec = expr(mc, unreal.MaterialExpressionVectorParameter, -500, -200)
+    ec.set_editor_property("parameter_name", "Color")
+    ec.set_editor_property("default_value", unreal.LinearColor(0.5, 0.5, 0.5, 1))
+    mel.connect_material_property(ec, "", unreal.MaterialProperty.MP_BASE_COLOR)
+    er = expr(mc, unreal.MaterialExpressionScalarParameter, -500, 50)
+    er.set_editor_property("parameter_name", "Roughness")
+    er.set_editor_property("default_value", 0.5)
+    mel.connect_material_property(er, "", unreal.MaterialProperty.MP_ROUGHNESS)
+    ee = expr(mc, unreal.MaterialExpressionVectorParameter, -500, 250)
+    ee.set_editor_property("parameter_name", "Emissive")
+    ee.set_editor_property("default_value", unreal.LinearColor(0, 0, 0, 1))
+    mel.connect_material_property(ee, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    mel.recompile_material(mc)
+    unreal.EditorAssetLibrary.save_loaded_asset(mc)
+except Exception as e:
+    log("M_Color: %s" % e)
+
+try:
     mats["board"] = flat("M_Valla", (0.80, 0.82, 0.86, 1), 0.45)
     mats["line"] = flat("M_Linea", (0.90, 0.91, 0.93, 1), 0.4)
     mats["stand"] = flat("M_Grada", (0.05, 0.055, 0.07, 1), 0.85)

@@ -1,6 +1,7 @@
 #include "PPShooter.h"
 #include "PPGameMode.h"
 #include "PPBall.h"
+#include "PPMaterial.h"
 #include "Camera/CameraComponent.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -324,6 +325,13 @@ void APPShooter::CamUpdate(float Dt, EPPState State, const FPPVec& BallPos)
 	Cam->SetFieldOfView(CamFov);
 	const FVector PosUE = ToUE(Pos), LookUE = ToUE(CamLookG);
 	Cam->SetWorldLocationAndRotation(PosUE, FRotationMatrix::MakeFromX(LookUE - PosUE).Rotator());
+}
+
+void APPShooter::BeginPlay()
+{
+	Super::BeginPlay();
+	if (Placeholder) Placeholder->SetMaterial(0, PP::ColorMID(this, FLinearColor(.04f, .06f, .22f), .7f));   // camiseta azul
+	if (StickMesh) StickMesh->SetMaterial(0, PP::ColorMID(this, FLinearColor(.75f, .55f, .3f), .4f));        // palo de madera
 }
 
 void APPShooter::Tick(float Dt)

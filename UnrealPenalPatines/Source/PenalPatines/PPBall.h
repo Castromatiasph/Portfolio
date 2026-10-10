@@ -14,6 +14,7 @@ class PENALPATINES_API APPBall : public AActor
 	GENERATED_BODY()
 public:
 	APPBall();
+	virtual void BeginPlay() override;
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TObjectPtr<UStaticMeshComponent> Mesh;
 
