@@ -4,6 +4,7 @@
 #include "GameFramework/Pawn.h"
 #include "PPTypes.h"
 #include "PPRig.h"
+#include "PPPoseMesh.h"
 #include "PPShooter.generated.h"
 
 class UCameraComponent;
@@ -44,6 +45,7 @@ public:
 	virtual void SetupPlayerInputComponent(UInputComponent* Input) override;
 
 	// ---- componentes ----
+	UPROPERTY() TArray<TObjectPtr<UPoseableMeshComponent>> ExtraParts;                // pelo, ojos, cejas... (el importador los separa en mallas distintas)
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TObjectPtr<UPPPoseMesh> BodyMesh;   // SK_Matias, posado por código (PPRig)
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly) TObjectPtr<UStaticMeshComponent> StickMesh;
 	// cuerpo provisorio armado con formas básicas (se oculta cuando se asigna un SkeletalMesh en BodyMesh)

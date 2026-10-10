@@ -22,6 +22,19 @@ namespace PP
 		return nullptr;
 	}
 
+	template<class T>
+	TArray<T*> FindAssets(const TCHAR* Folder)
+	{
+		FAssetRegistryModule& Reg = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+		TArray<FAssetData> Found;
+		Reg.Get().GetAssetsByPath(FName(Folder), Found, true);
+		const FTopLevelAssetPath Cls = T::StaticClass()->GetClassPathName();
+		TArray<T*> Out;
+		for (const FAssetData& D : Found)
+			if (D.AssetClassPath == Cls) if (T* A = Cast<T>(D.GetAsset())) Out.Add(A);
+		return Out;
+	}
+
 	inline void ScreenWarn(const FString& Msg)
 	{
 		UE_LOG(LogTemp, Warning, TEXT("[PenalPatines] %s"), *Msg);
