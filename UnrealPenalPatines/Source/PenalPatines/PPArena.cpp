@@ -2,7 +2,6 @@
 #include "PPTypes.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/RectLightComponent.h"
-#include "Components/SkyLightComponent.h"
 #include "Components/PostProcessComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Engine/StaticMesh.h"
@@ -172,22 +171,15 @@ void APPArena::Build()
 		S.bOverride_LumenSceneLightingQuality = true; S.LumenSceneLightingQuality = 2.f;
 		S.bOverride_LumenFinalGatherQuality = true; S.LumenFinalGatherQuality = 2.f;
 		S.bOverride_LumenSceneDetail = true; S.LumenSceneDetail = 2.f;
-		S.bOverride_AutoExposureMethod = true; S.AutoExposureMethod = EAutoExposureMethod::AEM_Manual;
-		S.bOverride_AutoExposureBias = true; S.AutoExposureBias = 11.5f;                 // EV100 manual: interior iluminado
-		S.bOverride_BloomIntensity = true; S.BloomIntensity = .6f;
+		S.bOverride_AutoExposureMethod = true; S.AutoExposureMethod = EAutoExposureMethod::AEM_Histogram;
+		S.bOverride_AutoExposureBias = true; S.AutoExposureBias = -0.5f;
+		S.bOverride_AutoExposureMinBrightness = true; S.AutoExposureMinBrightness = .3f;
+		S.bOverride_AutoExposureMaxBrightness = true; S.AutoExposureMaxBrightness = 3.f;
+		S.bOverride_BloomIntensity = true; S.BloomIntensity = .25f;
 		S.bOverride_MotionBlurAmount = true; S.MotionBlurAmount = .35f;
 		S.bOverride_VignetteIntensity = true; S.VignetteIntensity = .35f;
 		S.bOverride_FilmGrainIntensity = true; S.FilmGrainIntensity = .12f;
 		S.bOverride_AmbientOcclusionIntensity = true; S.AmbientOcclusionIntensity = .5f;
 		S.bOverride_ScreenSpaceReflectionQuality = true; S.ScreenSpaceReflectionQuality = 100.f;
-	}
-	if (!FindComponentByClass<USkyLightComponent>())
-	{
-		USkyLightComponent* Sky = NewObject<USkyLightComponent>(this, TEXT("SkyLight"));
-		Sky->SetMobility(EComponentMobility::Movable);
-		Sky->SetupAttachment(RootComponent);
-		Sky->RegisterComponent();
-		Sky->bRealTimeCapture = true;
-		Sky->SetIntensity(.35f);
 	}
 }
