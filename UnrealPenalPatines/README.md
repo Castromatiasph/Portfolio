@@ -107,7 +107,7 @@ UnrealPenalPatines/
 
 ## Créditos de los modelos (del juego original)
 
-- Patín: "70's - 80's Roller Skate" por gozdemrl (Sketchfab) — CC BY 4.0
+- Patín: "70's - 80's Roller Skate" por gozdemrl (Sketchfab) — CC BY 4.0 (en el juego: `SM_PatinReal`, preparado con `Tools/prepare_skate.mjs`)
 - Careta: "Hockey Goalie Mask" por matýsek (Sketchfab) — CC BY 4.0
 - Butacas: "2rows Tribune" por iyaroslavm (Sketchfab) — CC BY 4.0
 - Palo (no incluido en este port): "Hockey Stick" por Yogensia (Sketchfab) — CC BY-NC-SA 4.0

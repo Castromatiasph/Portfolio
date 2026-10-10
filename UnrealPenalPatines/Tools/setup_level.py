@@ -180,6 +180,15 @@ try:
                 eal.rename_asset(str(a_.package_name), "/Game/Models/SM_Palo")
                 break
     log("Palo importado: %s" % eal.does_asset_exist("/Game/Models/SM_Palo"))
+    # patines
+    import_files([os.path.join(SRC, "Models", "SM_PatinReal.glb")], "/Game/Models")
+    if not eal.does_asset_exist("/Game/Models/SM_PatinReal"):
+        reg = unreal.AssetRegistryHelpers.get_asset_registry()
+        for a_ in reg.get_assets_by_path("/Game/Models", recursive=False):
+            if str(a_.asset_class_path.asset_name) == "StaticMesh" and "patin" in str(a_.asset_name).lower():
+                eal.rename_asset(str(a_.package_name), "/Game/Models/SM_PatinReal")
+                break
+    log("Patín importado: %s" % eal.does_asset_exist("/Game/Models/SM_PatinReal"))
 except Exception as e:
     log("Matías: %s" % e)
 

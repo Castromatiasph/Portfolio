@@ -317,8 +317,18 @@ void APPShooter::ApplyVisual(float Dt, EPPState State)
 		Seg(LegC[i], Hip + FPPVec(Sd * .11f, 0.f, 0.f), Foot + FPPVec(0.f, .03f, 0.f), .16f);
 		if (SkateC[i])
 		{
-			SkateC[i]->SetRelativeLocation(PP::ToUE(Foot + FPPVec(0.f, -.035f, 0.f)));
-			SkateC[i]->SetRelativeScale3D(FVector(.32, .1, .1));          // largo adelante (X), ancho (Y), alto (Z)
+			if (bRealSkate)
+			{
+				// el patín real apoya las ruedas en su origen; la punta baja un poco cuando el pie se levanta
+				SkateC[i]->SetRelativeLocation(PP::ToUE(Foot + FPPVec(0.f, -.09f, 0.f)));
+				SkateC[i]->SetRelativeRotation(FRotator(-FMath::RadiansToDegrees(FMath::Clamp(Lift * 3.f, 0.f, .5f)), 0.f, 0.f));
+				SkateC[i]->SetRelativeScale3D(FVector(double(SkateScale)));
+			}
+			else
+			{
+				SkateC[i]->SetRelativeLocation(PP::ToUE(Foot + FPPVec(0.f, -.035f, 0.f)));
+				SkateC[i]->SetRelativeScale3D(FVector(.32, .1, .1));          // largo adelante (X), ancho (Y), alto (Z)
+			}
 		}
 	}
 
@@ -409,6 +419,17 @@ void APPShooter::BeginPlay()
 	for (auto& S : SkateC) Col(S, FLinearColor(.02f, .02f, .025f), .35f);   // patines
 	for (auto& A : ArmC) Col(A, FLinearColor(.45f, .28f, .2f), .55f);
 	Col(StickMesh, FLinearColor(.75f, .55f, .3f), .4f);                     // palo de madera
+	// patines reales (SM_PatinReal: origen en el tobillo, ruedas apoyadas en y=0, punta hacia adelante, 30 cm de largo)
+	if (UStaticMesh* SK2 = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/Models/SM_PatinReal.SM_PatinReal")))
+	{
+		const FBoxSphereBounds B = SK2->GetBounds();
+		if (B.BoxExtent.X > 1.0)
+		{
+			for (auto& S : SkateC) if (S) { S->SetStaticMesh(SK2); S->EmptyOverrideMaterials(); }   // conserva los materiales importados
+			SkateScale = float(30.0 / (2.0 * B.BoxExtent.X));
+			bRealSkate = true;
+		}
+	}
 	// palo real (SM_Palo: tapón en el origen, caña hacia abajo, pala hacia adelante); si falta, queda el palo provisorio
 	if (UStaticMesh* SM = LoadObject<UStaticMesh>(nullptr, TEXT("/Game/Models/SM_Palo.SM_Palo")))
 	{
