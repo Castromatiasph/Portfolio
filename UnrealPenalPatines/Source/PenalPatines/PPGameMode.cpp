@@ -928,7 +928,7 @@ void APPGameMode::Record()
 {
 	if (State != EPPState::Aim && State != EPPState::Charge && State != EPPState::Swing && State != EPPState::Flight && State != EPPState::Loose) return;
 	FPPFrame F;
-	F.T = Time; F.SPos = Shooter->GamePos; F.SHead = Shooter->Heading; F.SAmp = Shooter->Amp; F.SPhase = Shooter->StridePhase; F.SLean = Shooter->LeanRoll; F.SBrake = Shooter->Brake; F.SSweep = Shooter->Sweep;
+	F.T = Time; F.SPos = Shooter->GamePos; F.SHead = Shooter->Heading; F.SAmp = Shooter->Amp; F.SPhase = Shooter->StridePhase; F.SLean = Shooter->LeanRoll; F.SBrake = Shooter->Brake; F.SSweep = Shooter->Sweep; F.SPin = Shooter->LastPin;
 	F.Pose = Shooter->CurPose;
 	F.BallPos = Ball->Pos; F.BallQ = Ball->GetActorQuat(); F.bHide = Ball->IsHidden();
 	F.GPos = Gk->Pos; F.GRoll = Gk->Roll; F.GYaw = Gk->Yaw; F.GKneel = Gk->Kneel; F.GPlay = Gk->Play; F.GGlove = Gk->GloveLocal; F.GBlock = Gk->BlockerLocal; F.GPad = Gk->PadExt;
@@ -959,9 +959,9 @@ void APPGameMode::StepReplay(float Dt)
 	for (int32 k = 0; k < Rp.Frames.Num(); k++) { if (Rp.Frames[k].T > Rp.Tt) break; I = k; }
 	const FPPFrame& F = Rp.Frames[I];
 	Shooter->GamePos = F.SPos; Shooter->Heading = F.SHead; Shooter->Amp = F.SAmp; Shooter->StridePhase = F.SPhase; Shooter->LeanRoll = F.SLean; Shooter->Brake = F.SBrake; Shooter->Sweep = F.SSweep;
-	Shooter->CurPose = F.Pose;
-	Shooter->ApplyVisual(0.f, EPPState::Replay);
+	Shooter->CurPose = F.Pose; Shooter->ReplayPin = F.SPin;
 	Ball->Pos = F.BallPos; Ball->SetActorRotation(F.BallQ); Ball->SetActorHiddenInGame(F.bHide); Ball->SyncActor();
+	Shooter->ApplyVisual(0.f, EPPState::Replay);
 	Gk->Pos = F.GPos; Gk->Roll = F.GRoll; Gk->Yaw = F.GYaw; Gk->Kneel = F.GKneel; Gk->Play = F.GPlay; Gk->GloveLocal = F.GGlove; Gk->BlockerLocal = F.GBlock; Gk->PadExt = F.GPad;
 	Gk->ApplyVisual();
 	Shooter->CamReplay(Dt, F.BallPos);

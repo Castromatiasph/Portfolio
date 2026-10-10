@@ -17,12 +17,13 @@ class APPGameMode;
 struct FPPPose
 {
 	FPPVec H = FPPVec(-.07f, .12f, -.36f);  // mano de arriba
-	float Th = 0.f;                          // ángulo del palo
+	float Th = 0.f;                          // ángulo del palo (solo para el AnimBP)
+	FPPVec D = FPPVec(-.34f, -.84f, -.42f);  // dirección del palo (de la mano hacia la pala), espacio del torso
 	float Tw = 0.f;                          // giro de hombros
 	float Ln = -.8f;                         // inclinación
 	static FPPPose Lerp(const FPPPose& A, const FPPPose& B, float K)
 	{
-		FPPPose R; R.H = FMath::Lerp(A.H, B.H, K); R.Th = FMath::Lerp(A.Th, B.Th, K); R.Tw = FMath::Lerp(A.Tw, B.Tw, K); R.Ln = FMath::Lerp(A.Ln, B.Ln, K); return R;
+		FPPPose R; R.H = FMath::Lerp(A.H, B.H, K); R.Th = FMath::Lerp(A.Th, B.Th, K); R.Tw = FMath::Lerp(A.Tw, B.Tw, K); R.Ln = FMath::Lerp(A.Ln, B.Ln, K); R.D = FMath::Lerp(A.D, B.D, K); return R;
 	}
 };
 
@@ -80,6 +81,8 @@ public:
 	FPPVec BallLocal = FPPVec(-.45f, PP::BallR, -.8f);
 	FPPVec BallLocalPress;
 	float DribA = 0.f, DribP = 0.f, DribVal = 0.f;   // vaivén de la bocha al conducir
+	float LastPin = 0.f, ReplayPin = 0.f;            // cuánto está la pala "pegada" a la bocha (0..1)
+	FPPRigTargets SmoothT; bool bSmoothInit = false;  // objetivos del rig suavizados
 
 	// entradas
 	FPPVec2 MoveIn = FPPVec2::ZeroVector;
@@ -106,10 +109,10 @@ public:
 	void ApplyVisual(float Dt, EPPState State);
 
 	static FPPPose Rest() { return FPPPose(); }
-	static FPPPose Back() { FPPPose P; P.H = FPPVec(-.1f, .38f, -.26f); P.Th = -2.2f; P.Tw = -.5f; P.Ln = -.52f; return P; }
-	static FPPPose Follow() { FPPPose P; P.H = FPPVec(.04f, .4f, -.5f); P.Th = 1.5f; P.Tw = -.6f; P.Ln = -.48f; return P; }
-	static FPPPose FollowLow() { FPPPose P; P.H = FPPVec(.02f, .18f, -.55f); P.Th = .75f; P.Tw = -.35f; P.Ln = -.72f; return P; }
-	static FPPPose Backhand() { FPPPose P; P.H = FPPVec(.16f, .2f, -.42f); P.Th = .85f; P.Tw = .6f; P.Ln = -.7f; return P; }
+	static FPPPose Back() { FPPPose P; P.H = FPPVec(-.1f, .38f, -.26f); P.D = FPPVec(-.68f, .28f, .68f); P.Th = -2.2f; P.Tw = -.5f; P.Ln = -.52f; return P; }
+	static FPPPose Follow() { FPPPose P; P.H = FPPVec(.04f, .4f, -.5f); P.D = FPPVec(-.25f, .62f, -.74f); P.Th = 1.5f; P.Tw = -.6f; P.Ln = -.48f; return P; }
+	static FPPPose FollowLow() { FPPPose P; P.H = FPPVec(.02f, .18f, -.55f); P.D = FPPVec(-.35f, -.35f, -.87f); P.Th = .75f; P.Tw = -.35f; P.Ln = -.72f; return P; }
+	static FPPPose Backhand() { FPPPose P; P.H = FPPVec(.16f, .2f, -.42f); P.D = FPPVec(.35f, -.45f, -.82f); P.Th = .85f; P.Tw = .6f; P.Ln = -.7f; return P; }
 
 private:
 	APPGameMode* Match() const;
@@ -136,7 +139,7 @@ private:
 	float Braking = 0.f, BrakeK = 0.f, StartK = 0.f, HipSway = 0.f;
 	FPPRig Rig; bool bRig = false;
 	/** Diagnóstico: dibuja esferas en cabeza, manos y pies del esqueleto y muestra datos del modelo en pantalla. */
-	UPROPERTY(EditAnywhere, Category = "Debug") bool bDebugRig = true;
+	UPROPERTY(EditAnywhere, Category = "Debug") bool bDebugRig = false;
 	float DbgT = 0.f;
 	bool bRealSkate = false; float SkateScale = 1.f, SkateYaw = 0.f; FVector SkateToeLocal = FVector::XAxisVector;   // patín real (SM_PatinReal)
 	bool bRealStick = false; float StickScale = 1.f; FVector StickTipLocal = -FVector::ZAxisVector, StickToeLocal = FVector::XAxisVector;   // palo real (SM_Palo)

@@ -19,7 +19,10 @@
 namespace
 {
 	constexpr float HipY = .76f;
-	const FPPVec StickRestDir = FPPVec(-.34f, -.84f, -.42f).GetSafeNormal();
+	// el tobillo del jugador queda adentro del botín: a 18 cm del piso y a 7,5 cm del talón del patín
+	constexpr float AnkleSeatY = .18f, AnkleSeatZ = .075f;
+	// palo (SM_Palo): del tapón al fondo de la caña 1,19 m; la pala sale 19 cm hacia un costado desde ahí; la mano de arriba agarra 12 cm bajo el tapón
+	constexpr float StickCapToHand = .12f, StickShaft = 1.19f, BladeHalf = .19f, HandsGap = .28f;
 }
 
 APPShooter::APPShooter()
@@ -321,11 +324,11 @@ void APPShooter::ApplyVisual(float Dt, EPPState State)
 		{
 			if (bRealSkate)
 			{
-				// ruedas apoyadas en el piso; la punta baja un poco al levantar el pie; el tobillo del patín (14,87 cm del talón) queda bajo el del jugador
+				// ruedas apoyadas en el piso; la punta baja un poco al levantar el pie; el asiento del tobillo del patín (7,5 cm del talón) queda bajo el del jugador
 				const FRotator R(-FMath::RadiansToDegrees(FMath::Clamp(Lift * 3.f, 0.f, .5f)), SkateYaw, 0.f);
 				const FVector GroundUE = PP::ToUE(Foot + FPPVec(0.f, -.09f, 0.f));
 				SkateC[i]->SetRelativeRotation(R);
-				SkateC[i]->SetRelativeLocation(GroundUE - R.RotateVector(SkateToeLocal * 14.87));
+				SkateC[i]->SetRelativeLocation(GroundUE - R.RotateVector(SkateToeLocal * (AnkleSeatZ * 100.0 * double(SkateScale))));
 				SkateC[i]->SetRelativeScale3D(FVector(double(SkateScale)));
 			}
 			else
@@ -337,34 +340,86 @@ void APPShooter::ApplyVisual(float Dt, EPPState State)
 	}
 
 	// ---- palo y manos ----
-	const FPPVec Hand(CurPose.H.X, HipY + CurPose.H.Y + .08f, CurPose.H.Z);   // +8 cm: el jugador está sobre los patines
-	const float C = FMath::Cos(CurPose.Th), S = FMath::Sin(CurPose.Th);
-	FPPVec D(StickRestDir.X, StickRestDir.Y * C - StickRestDir.Z * S, StickRestDir.Y * S + StickRestDir.Z * C);
-	D.Normalize();
-	const float Len = 1.18f;
+	// La mano de arriba y la dirección salen de la pose; mientras la bocha está en la pala ("Pin"), la pala se apoya en la bocha
+	// y la mano se corre sobre su línea para que el palo (de largo fijo) llegue justo hasta ahí.
+	FPPVec Hand(CurPose.H.X, HipY + CurPose.H.Y + .08f, CurPose.H.Z);   // +8 cm: el jugador está sobre los patines
+	FPPVec D = CurPose.D.GetSafeNormal();
+	float Pin = 0.f;
+	switch (State)
+	{
+	case EPPState::Aim: Pin = 1.f; break;
+	case EPPState::Charge: Pin = 1.f - PP::Smooth(FMath::Clamp(PowerVis, 0.f, 1.f)); break;
+	case EPPState::Swing: { const float K = FMath::Clamp(SwingT / FMath::Max(Contact, .01f), 0.f, 1.f); Pin = K * K; break; }
+	case EPPState::Flight: Pin = FMath::Clamp(1.f - (SwingT - Contact) / .06f, 0.f, 1.f); break;
+	case EPPState::Replay: Pin = ReplayPin; break;
+	default: break;
+	}
+	LastPin = Pin;
+	if (Pin > .001f)
+	{
+		FPPVec BallL = BallLocalPress;
+		if (State != EPPState::Flight)
+		{
+			const APPGameMode* M = Match();
+			if (M && M->Ball)
+			{
+				const float Ch = FMath::Cos(Heading), Sh = FMath::Sin(Heading);
+				const float Dx = M->Ball->Pos.X - GamePos.X, Dz = M->Ball->Pos.Z - GamePos.Z;
+				BallL = FPPVec(Dx * Ch - Dz * Sh, M->Ball->Pos.Y, Dx * Sh + Dz * Ch);
+			}
+		}
+		const float BR = PP::BallR;
+		FPPVec H2(BallL.X - Hand.X, 0.f, BallL.Z - Hand.Z);
+		const FPPVec Lean = H2.SizeSquared() > 1e-4f ? H2.GetSafeNormal() : FPPVec(0.f, 0.f, -1.f);
+		FPPVec Toe(Lean.Z, 0.f, -Lean.X);                                        // la pala queda horizontal, de lado, de cara a la bocha
+		if (Toe.X > 0.f) Toe = -Toe;
+		const FPPVec BladeC(BallL.X - Lean.X * (BR + .0135f), BallL.Y, BallL.Z - Lean.Z * (BR + .0135f));
+		const FPPVec ShaftBase = BladeC - Toe * BladeHalf;                              // pie de la caña
+		const FPPVec Dir = (Hand - ShaftBase).GetSafeNormal();
+		const FPPVec HandP = ShaftBase + Dir * (StickShaft - StickCapToHand);
+		Hand = FMath::Lerp(Hand, HandP, Pin);
+		D = FMath::Lerp(D, -Dir, Pin).GetSafeNormal();
+	}
+	const FPPVec Cap = Hand - D * StickCapToHand;
+	const FPPVec TopGrip = Hand, LowGrip = Hand + D * HandsGap;
 	if (bRealStick)
 	{
-		const FVector DirUE = PP::ToUE(D).GetSafeNormal();
+		// orientación: la caña sigue a D y la pala sale horizontal, perpendicular a la inclinación del palo
+		FPPVec Dh(D.X, 0.f, D.Z);
+		FPPVec Toe = Dh.SizeSquared() > 2.5e-3f ? FPPVec(Dh.Z, 0.f, -Dh.X).GetSafeNormal() : FPPVec(-1.f, 0.f, 0.f);
+		if (Toe.X > 0.f) Toe = -Toe;
+		const FVector DirUE = PP::ToUE(D).GetSafeNormal(), ToeUE = PP::ToUE(Toe).GetSafeNormal();
 		const FQuat QLocal = FRotationMatrix::MakeFromZX(StickTipLocal, StickToeLocal).ToQuat();
-		const FQuat QWorld = FRotationMatrix::MakeFromZX(DirUE, FVector::XAxisVector).ToQuat();
-		// largo para que la pala apoye justo en el piso cuando el palo apunta hacia abajo
-		const float Lm = D.Y < -.35f ? FMath::Clamp(.05f + (Hand.Y - .012f) / (-D.Y), 1.0f, 1.35f) : 1.23f;
-		StickMesh->SetRelativeLocation(PP::ToUE(Hand - D * .05f));
+		const FQuat QWorld = FRotationMatrix::MakeFromZX(DirUE, ToeUE).ToQuat();
+		StickMesh->SetRelativeLocation(PP::ToUE(Cap));
 		StickMesh->SetRelativeRotation((QWorld * QLocal.Inverse()).Rotator());
-		StickMesh->SetRelativeScale3D(FVector(double(StickScale) * double(Lm) / 1.23));
+		StickMesh->SetRelativeScale3D(FVector(double(StickScale)));
 	}
-	else Seg(StickMesh, Hand - D * .05f, Hand + D * Len, .028f);
-	Seg(ArmC[0], ShL, Hand + D * .24f, .1f);    // mano de abajo (izquierda)
-	Seg(ArmC[1], ShR, Hand + D * .05f, .1f);   // mano de arriba (derecha)
+	else Seg(StickMesh, Cap, Cap + D * 1.23f, .028f);
+	Seg(ArmC[0], ShL, LowGrip, .1f);    // mano de abajo (izquierda)
+	Seg(ArmC[1], ShR, TopGrip, .1f);    // mano de arriba (derecha)
 
 	if (bRig)
 	{
 		FPPRigTargets T;
-		T.HipHeight = Rig.PelvisRestH + .08f - .10f - .05f * Amp - .04f * Brake;   // sobre los patines, con las rodillas flexionadas
-		T.HipX = HipSway; T.Lean = A; T.Twist = Tw;
-		T.HandL = Hand + D * .24f; T.HandR = Hand + D * .05f;
-		T.AnkleL = Feet[0] + FPPVec(0.f, .08f, 0.f); T.AnkleR = Feet[1] + FPPVec(0.f, .08f, 0.f);
+		T.HipHeight = Rig.PelvisRestH + (AnkleSeatY - .077f) - .10f - .05f * Amp - .04f * Brake;   // sobre los patines, con las rodillas flexionadas
+		T.HipX = HipSway; T.Lean = A; T.Twist = Tw * .45f;
+		T.HandL = LowGrip; T.HandR = TopGrip; T.StickDir = D;
+		T.AnkleL = FPPVec(Feet[0].X, Lifts[0] + AnkleSeatY, Feet[0].Z); T.AnkleR = FPPVec(Feet[1].X, Lifts[1] + AnkleSeatY, Feet[1].Z);
 		T.FootPitchL = FMath::Clamp(Lifts[0] * 3.f, 0.f, .5f); T.FootPitchR = FMath::Clamp(Lifts[1] * 3.f, 0.f, .5f);
+		// suavizado del torso (la mano, el palo y los pies van directos para no despegarse de la bocha ni del patín)
+		const float Sp = State == EPPState::Swing || State == EPPState::Flight ? 28.f : 12.f;
+		if (!bSmoothInit || Dt <= 0.f) { SmoothT = T; bSmoothInit = true; }
+		else
+		{
+			SmoothT.HipHeight = FMath::FInterpTo(SmoothT.HipHeight, T.HipHeight, Dt, 10.f);
+			SmoothT.HipX = FMath::FInterpTo(SmoothT.HipX, T.HipX, Dt, 10.f);
+			SmoothT.Lean = FMath::FInterpTo(SmoothT.Lean, T.Lean, Dt, Sp);
+			SmoothT.Twist = FMath::FInterpTo(SmoothT.Twist, T.Twist, Dt, Sp);
+			SmoothT.HandL = T.HandL; SmoothT.HandR = T.HandR; SmoothT.StickDir = T.StickDir;
+			SmoothT.AnkleL = T.AnkleL; SmoothT.AnkleR = T.AnkleR; SmoothT.FootPitchL = T.FootPitchL; SmoothT.FootPitchR = T.FootPitchR;
+		}
+		T = SmoothT;
 		Rig.Pose(T);
 	}
 }

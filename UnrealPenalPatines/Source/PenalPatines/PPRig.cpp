@@ -103,6 +103,34 @@ bool FPPRig::Init(UPPPoseMesh* M)
 		FootLen[s] = float((T - Up * FVector::DotProduct(T, Up)).Size());
 	}
 
+	// dedos y ejes de la mano (para cerrar el puño sobre el palo); si falta algún hueso, la mano queda abierta
+	bHands = true;
+	for (int s = 0; s < 2; s++)
+		for (int f = 0; f < 5; f++)
+			for (int k = 0; k < 3; k++)
+			{
+				Fing[s][f][k] = Find(*FString::Printf(TEXT("finger%d-%d.%s"), f + 1, k + 1, Sd[s]));
+				if (Fing[s][f][k] == INDEX_NONE) bHands = false;
+			}
+	if (bHands)
+		for (int s = 0; s < 2; s++)
+		{
+			const FVector Fd = (Pos(Fing[s][2][0]) - Pos(Wr[s])).GetSafeNormal();                 // muñeca -> nudillo del medio
+			FVector Nrm = FVector::ZeroVector;                                                      // la palma es hacia donde se curvan los dedos en reposo
+			for (int f = 1; f < 5; f++)
+			{
+				const FVector A1 = (Pos(Fing[s][f][1]) - Pos(Fing[s][f][0])).GetSafeNormal(), A2 = (Pos(Fing[s][f][2]) - Pos(Fing[s][f][1])).GetSafeNormal();
+				Nrm += A2 - A1;
+			}
+			Nrm = (Nrm - Fd * FVector::DotProduct(Nrm, Fd)).GetSafeNormal();
+			FVector Ac = (Pos(Fing[s][4][0]) - Pos(Fing[s][1][0]));
+			Ac = (Ac - Fd * FVector::DotProduct(Ac, Fd) - Nrm * FVector::DotProduct(Ac, Nrm)).GetSafeNormal();
+			if (Nrm.IsNearlyZero() || Ac.IsNearlyZero()) { bHands = false; break; }
+			const FQuat Inv = CS[Wr[s]].GetRotation().Inverse();
+			HandF[s] = Inv.RotateVector(Fd); HandN[s] = Inv.RotateVector(Nrm); HandA[s] = Inv.RotateVector(Ac);
+		}
+	GripAlong = 6.5f * S; GripOut = 2.2f * S;      // desde la muñeca: 6,5 cm hacia los dedos y 2,2 cm hacia la palma (unidades del modelo en cm)
+
 	// transformación del componente: ejes del modelo -> ejes del actor (X adelante, Y derecha, Z arriba)
 	const FQuat Basis = FRotationMatrix::MakeFromXZ(Fwd, Up).ToQuat();
 	CompRot = Basis.Inverse();
@@ -132,15 +160,13 @@ void FPPRig::Pose(const FPPRigTargets& T)
 	// giro de hombros
 	auto Twist = [&](int32 B, float Ang) { RotateCS(B, FQuat::FindBetweenNormals(Right, (Right * FMath::Cos(Ang) + Fwd * FMath::Sin(Ang)).GetSafeNormal())); };
 	Twist(Sp03, T.Twist * .5f); Twist(Sp01, T.Twist * .5f);
-	// brazos: IK de dos huesos (codos hacia afuera, abajo y atrás)
+	// brazos: las manos agarran el palo (muñeca y puño calculados para que el palo pase por la palma)
 	const FPPVec Hands[2] = { T.HandL, T.HandR };
+	const FVector StickC = (Right * T.StickDir.X + Up * T.StickDir.Y + Fwd * (-T.StickDir.Z)).GetSafeNormal();
 	for (int s = 0; s < 2; s++)
 	{
 		const double Side = s == 0 ? -1.0 : 1.0;
-		const FVector H = ToComp(Hands[s]);
-		const FVector E = Solve(Pos(UA[s]), H, ArmA[s], ArmB[s], Right * (Side * .7) - Up * .4 - Fwd * .6);
-		Aim(UA[s], LA[s], E);
-		Aim(LA[s], Wr[s], H);
+		Grip(s, ToComp(Hands[s]), StickC, Right * (Side * .7) - Up * .4 - Fwd * .6);
 	}
 	// piernas: rodillas hacia adelante; el pie queda horizontal (o con la punta hacia abajo al levantarlo)
 	const FPPVec Ankles[2] = { T.AnkleL, T.AnkleR };
@@ -156,4 +182,46 @@ void FPPRig::Pose(const FPPRigTargets& T)
 		Aim(Ft[s], Toe[s], Pos(Ft[s]) + ToeDir * double(FootLen[s]));
 	}
 	Mesh->SetLocalPose(L);
+}
+
+void FPPRig::Grip(int32 Side, const FVector& GripPoint, const FVector& StickDirC, const FVector& Pole)
+{
+	if (!bHands)
+	{
+		const FVector H = GripPoint;
+		Aim(UA[Side], LA[Side], Solve(Pos(UA[Side]), H, ArmA[Side], ArmB[Side], Pole));
+		Aim(LA[Side], Wr[Side], H);
+		return;
+	}
+	for (int Iter = 0; Iter < 2; Iter++)
+	{
+		FQuat Rw = CS[Wr[Side]].GetRotation();
+		const FVector Off = Rw.RotateVector(HandF[Side]) * GripAlong + Rw.RotateVector(HandN[Side]) * GripOut;
+		const FVector WristT = GripPoint - Off;
+		Aim(UA[Side], LA[Side], Solve(Pos(UA[Side]), WristT, ArmA[Side], ArmB[Side], Pole));
+		Aim(LA[Side], Wr[Side], WristT);
+		// la línea de los nudillos queda paralela al palo (el palo atraviesa el puño)
+		Rw = CS[Wr[Side]].GetRotation();
+		const FVector Ac = Rw.RotateVector(HandA[Side]);
+		const FVector Want = StickDirC * (FVector::DotProduct(Ac, StickDirC) >= 0.0 ? 1.0 : -1.0);
+		RotateCS(Wr[Side], FQuat::FindBetweenNormals(Ac, Want));
+	}
+	// cerrar los dedos hacia la palma
+	const FQuat Rw = CS[Wr[Side]].GetRotation();
+	FVector Nrm = Rw.RotateVector(HandN[Side]);
+	static const float Curl[5][3] = { { .45f, .7f, .5f }, { 1.2f, 1.4f, 1.0f }, { 1.25f, 1.4f, 1.0f }, { 1.25f, 1.4f, 1.0f }, { 1.2f, 1.4f, 1.0f } };
+	for (int f = 0; f < 5; f++)
+	{
+		FVector N = Nrm;
+		for (int k = 0; k < 3; k++)
+		{
+			const int32 B = Fing[Side][f][k];
+			const FVector Dv = (k < 2 ? Pos(Fing[Side][f][k + 1]) - Pos(B) : Pos(B) - Pos(Fing[Side][f][k - 1])).GetSafeNormal();
+			FVector Ax = FVector::CrossProduct(Dv, N).GetSafeNormal();
+			if (Ax.IsNearlyZero()) continue;
+			const FQuat Q(Ax, Curl[f][k]);
+			RotateCS(B, Q);
+			N = Q.RotateVector(N);
+		}
+	}
 }

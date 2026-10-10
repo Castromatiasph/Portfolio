@@ -12,7 +12,8 @@ struct FPPRigTargets
 	float HipX = 0.f;
 	float Lean = 0.f;                 // inclinación del torso hacia adelante (rad)
 	float Twist = 0.f;                // giro de hombros (rad, positivo = hombro derecho adelante)
-	FPPVec HandL = FPPVec::ZeroVector, HandR = FPPVec::ZeroVector;
+	FPPVec HandL = FPPVec::ZeroVector, HandR = FPPVec::ZeroVector;   // puntos del palo donde agarran la mano izquierda (abajo) y la derecha (arriba)
+	FPPVec StickDir = FPPVec(0.f, -1.f, 0.f);                          // dirección del palo; la mano cierra el puño alrededor de él
 	FPPVec AnkleL = FPPVec::ZeroVector, AnkleR = FPPVec::ZeroVector;
 	float FootPitchL = 0.f, FootPitchR = 0.f;   // punta hacia abajo (rad)
 };
@@ -27,6 +28,7 @@ class FPPRig
 {
 public:
 	bool bOk = false;
+	bool bHands = false;                 // se encontraron los huesos de los dedos
 	FQuat CompRot = FQuat::Identity;     // rotación del componente para que el modelo mire a +X del actor
 	FVector CompLoc = FVector::ZeroVector;
 	float CompScale = 1.f;
@@ -44,6 +46,9 @@ private:
 	TArray<FTransform> RefLocal, L, CS;
 	TArray<int32> Parent;
 	int32 Root = -1, Sp05 = -1, Sp03 = -1, Sp01 = -1, Neck = -1, Head = -1;
+	int32 Fing[2][5][3];                 // dedos: [lado][pulgar..meñique][falange]
+	FVector HandF[2], HandN[2], HandA[2]; // ejes de la mano en el espacio local de la muñeca: dedos, palma, nudillos
+	float GripAlong = 6.f, GripOut = 2.2f;
 	int32 UA[2] = { -1, -1 }, LA[2] = { -1, -1 }, Wr[2] = { -1, -1 }, UL[2] = { -1, -1 }, LL[2] = { -1, -1 }, Ft[2] = { -1, -1 }, Toe[2] = { -1, -1 };
 	FVector Fwd = FVector::XAxisVector, Right = FVector::YAxisVector, Up = FVector::ZAxisVector, Origin = FVector::ZeroVector;
 	float S = 1.f;                       // unidades del modelo por metro / 100
@@ -51,6 +56,7 @@ private:
 
 	int32 Find(const TCHAR* Name) const;
 	void FK();
+	void Grip(int32 Side, const FVector& GripPoint, const FVector& StickDirC, const FVector& Pole);
 	FVector Pos(int32 B) const { return CS[B].GetLocation(); }
 	void RotateCS(int32 B, const FQuat& Q);
 	void Aim(int32 B, int32 Child, const FVector& TargetChildPos);
