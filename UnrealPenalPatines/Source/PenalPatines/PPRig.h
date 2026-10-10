@@ -34,8 +34,8 @@ public:
 
 	bool Init(UPPPoseMesh* M);
 	int32 BoneHead() const { return Head; }
-	int32 BoneWrist(int32 S) const { return Wr[S]; }
-	int32 BoneFoot(int32 S) const { return Ft[S]; }
+	int32 BoneWrist(int32 Side) const { return Wr[Side]; }
+	int32 BoneFoot(int32 Side) const { return Ft[Side]; }
 	int32 BoneRoot() const { return Root; }
 	void Pose(const FPPRigTargets& T);
 
