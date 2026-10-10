@@ -35,7 +35,7 @@ void APPGameMode::BeginPlay()
 	if (APlayerController* PC = UGameplayStatics::GetPlayerController(this, 0))
 	{
 		PC->bShowMouseCursor = true;
-		FInputModeGameAndUI Mode; Mode.SetHideCursorDuringCapture(false); Mode.SetLockMouseToViewport(true);
+		FInputModeGameAndUI Mode; Mode.SetHideCursorDuringCapture(false); Mode.SetLockMouseToViewportBehavior(EMouseLockMode::LockOnCapture);
 		PC->SetInputMode(Mode);
 	}
 	State = EPPState::Menu;

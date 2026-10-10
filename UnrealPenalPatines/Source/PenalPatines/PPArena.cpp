@@ -135,7 +135,6 @@ void APPArena::Build()
 		Rl->SetLightColor(FLinearColor(1.f, .93f, .84f));
 		Rl->SetAttenuationRadius(2400.f);
 		Rl->SetCastShadows(true);
-		Rl->SetCastRaytracedShadow(ECastRayTracedShadow::Enabled);
 		// luminaria visible
 		Box(FVector(i * 7.f, 10.45f, -2.f + j * 7.f), FVector(1.8f, .05f, .6f), 0.f, nullptr, FLinearColor(8.f, 7.4f, 6.6f));
 	}
