@@ -76,7 +76,7 @@ except Exception as e:
 try:
     path = "/Game/Materials/M_Color"
     if eal.does_asset_exist(path):
-        eal.delete_asset(path)
+        raise RuntimeError("ya existe: no se toca (otros materiales pueden depender de él)")
     m = at.create_asset("M_Color", "/Game/Materials", unreal.Material, unreal.MaterialFactoryNew())
     m.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_CLEAR_COAT)
     m.set_editor_property("used_with_skeletal_mesh", True)   # para el cuerpo de Matías
@@ -123,7 +123,7 @@ except Exception as e:
 try:
     path = "/Game/Materials/M_Cutout"
     if eal.does_asset_exist(path):
-        eal.delete_asset(path)
+        raise RuntimeError("ya existe: no se toca (otros materiales pueden depender de él)")
     mc = at.create_asset("M_Cutout", "/Game/Materials", unreal.Material, unreal.MaterialFactoryNew())
     mc.set_editor_property("blend_mode", unreal.BlendMode.BLEND_MASKED)
     mc.set_editor_property("two_sided", True)
