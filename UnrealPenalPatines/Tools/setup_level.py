@@ -216,13 +216,17 @@ if IMPORT_MODELS:
                 log("modelo %s: %s" % (f, e))
 
 # 5) mapa ---------------------------------------------------------------------
-unreal.EditorLevelLibrary.new_level("/Game/Maps/Pista")
-arena_cls = getattr(unreal, "PPArena", None)
-if arena_cls is None:
-    unreal.log_error("[PenalPatines] No encuentro la clase PPArena: compilá el proyecto (Build) antes de correr este script.")
+# Si el mapa ya existe NO se toca (puede tener cambios hechos a mano en el editor). Para rehacerlo, borralo primero.
+if eal.does_asset_exist("/Game/Maps/Pista"):
+    log("El mapa /Game/Maps/Pista ya existe: no lo toco. (Si querés rehacerlo de cero, borralo y corré el script otra vez.)")
 else:
-    arena = unreal.EditorLevelLibrary.spawn_actor_from_class(arena_cls, unreal.Vector(0, 0, 0))
-    arena.set_actor_label("Pista")
-    unreal.EditorLevelLibrary.spawn_actor_from_class(unreal.PlayerStart, unreal.Vector(-540, 0, 50))
-    unreal.EditorLevelLibrary.save_current_level()
-    log("Mapa /Game/Maps/Pista listo. Dale Play.")
+    unreal.EditorLevelLibrary.new_level("/Game/Maps/Pista")
+    arena_cls = getattr(unreal, "PPArena", None)
+    if arena_cls is None:
+        unreal.log_error("[PenalPatines] No encuentro la clase PPArena: compilá el proyecto (Build) antes de correr este script.")
+    else:
+        arena = unreal.EditorLevelLibrary.spawn_actor_from_class(arena_cls, unreal.Vector(0, 0, 0))
+        arena.set_actor_label("Pista")
+        unreal.EditorLevelLibrary.spawn_actor_from_class(unreal.PlayerStart, unreal.Vector(-540, 0, 50))
+        unreal.EditorLevelLibrary.save_current_level()
+        log("Mapa /Game/Maps/Pista listo. Dale Play.")
