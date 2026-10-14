@@ -4,6 +4,11 @@
 #include "PPMaterial.h"
 #include "Components/StaticMeshComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Components/PoseableMeshComponent.h"
+#include "PPPoseMesh.h"
+#include "PPHuman.h"
+#include "PPAssets.h"
+#include "Engine/World.h"
 #include "UObject/ConstructorHelpers.h"
 #include "Engine/StaticMesh.h"
 
@@ -51,9 +56,20 @@ APPGoalkeeper::APPGoalkeeper()
 	Blocker = Make(TEXT("Blocker"), CubeM);
 	Stick = Make(TEXT("Stick"), CubeM);
 
-	BodyMesh = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("BodyMesh"));
+	BodyMesh = CreateDefaultSubobject<UPPPoseMesh>(TEXT("BodyMesh"));
 	BodyMesh->SetupAttachment(Root);
 	BodyMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+	auto Gear = [&](const TCHAR* Name)
+	{
+		UStaticMeshComponent* C = CreateDefaultSubobject<UStaticMeshComponent>(Name);
+		C->SetupAttachment(Root);
+		C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		C->SetVisibility(false);
+		return C;
+	};
+	GPads.Add(Gear(TEXT("GPadL"))); GPads.Add(Gear(TEXT("GPadR")));
+	GSkates.Add(Gear(TEXT("GSkateL"))); GSkates.Add(Gear(TEXT("GSkateR")));
+	GMask = Gear(TEXT("GMask")); GGlove = Gear(TEXT("GGlove")); GBlocker = Gear(TEXT("GBlocker")); GStick = Gear(TEXT("GStick"));
 	Diff = FPPDiff::Make(EPPDifficulty::Primera);
 }
 
@@ -67,6 +83,54 @@ void APPGoalkeeper::BeginPlay()
 	Col(Glove, FLinearColor(.9f, .9f, .92f), .5f);
 	Col(Blocker, FLinearColor(.02f, .02f, .025f));
 	Col(Stick, FLinearColor(.75f, .55f, .3f), .4f);
+
+	// ---- arquero de verdad: Matías con la camiseta del rival y el equipo ----
+	// ejes de los .glb dentro de Unreal, averiguados con el palo (caña hacia -Y, pala hacia +Z)
+	UStaticMesh* Palo = PP::FindAsset<UStaticMesh>(TEXT("/Game/Models"), TEXT("SM_Palo"));
+	if (Palo)
+	{
+		const FBoxSphereBounds B = Palo->GetBounds();
+		const FVector Tip(0.0, 0.0, B.Origin.Z < 0.0 ? -1.0 : 1.0);
+		const bool bBladeX = B.BoxExtent.X >= B.BoxExtent.Y;
+		const FVector Toe = bBladeX ? FVector(B.Origin.X >= 0.0 ? 1.0 : -1.0, 0.0, 0.0) : FVector(0.0, B.Origin.Y >= 0.0 ? 1.0 : -1.0, 0.0);
+		Ax.FromStick(Tip, Toe, B.BoxExtent.Z > 1.0 ? float(123.0 / (2.0 * B.BoxExtent.Z)) : 1.f);
+	}
+	if (!PP::SetupHuman(this, BodyMesh, ExtraParts, Rig, TEXT("T_Arquero_BaseColor"), TEXT("Arquero"))) return;
+	bRig = true;
+	const FQuat Flip(FVector::UpVector, PI);   // el arquero mira hacia el tirador (-X del actor)
+	BodyMesh->SetRelativeRotation((Flip * Rig.CompRot).Rotator());
+	BodyMesh->SetRelativeLocation(Flip.RotateVector(Rig.CompLoc));
+	BodyMesh->SetRelativeScale3D(FVector(Rig.CompScale));
+	if (Torso) Torso->SetVisibility(false);
+	if (Head) Head->SetVisibility(false);
+	auto Use = [&](UStaticMeshComponent* C, const TCHAR* Name, UStaticMeshComponent* Old, const FLinearColor& K, bool bKeepMats = false) -> bool
+	{
+		UStaticMesh* M = Palo ? PP::FindAsset<UStaticMesh>(TEXT("/Game/Models"), Name) : nullptr;
+		if (!C || !M) return false;
+		C->SetStaticMesh(M); C->SetVisibility(true);
+		if (!bKeepMats) for (int32 i = 0; i < C->GetNumMaterials(); i++) C->SetMaterial(i, PP::ColorMID(this, K, .5f));
+		if (Old) Old->SetVisibility(false);
+		return true;
+	};
+	const FLinearColor White(.85f, .85f, .86f);
+	const bool bPad0 = Use(GPads[0], TEXT("SM_Polaina"), Pads[0], White), bPad1 = Use(GPads[1], TEXT("SM_Polaina"), Pads[1], White);
+	(void)bPad0; (void)bPad1;
+	Use(GGlove, TEXT("SM_Guante"), Glove, White);
+	Use(GBlocker, TEXT("SM_Blocker"), Blocker, White);
+	Use(GStick, TEXT("SM_Palo"), Stick, FLinearColor(.75f, .55f, .3f));
+	Use(GSkates[0], TEXT("SM_PatinReal"), nullptr, White, true); Use(GSkates[1], TEXT("SM_PatinReal"), nullptr, White, true);
+	if (GSkates[0] && GSkates[0]->GetStaticMesh())
+	{
+		const FBoxSphereBounds B = GSkates[0]->GetStaticMesh()->GetBounds();
+		SeatY = FMath::Clamp(.55f * float(2.0 * B.BoxExtent.Z) * Ax.Scale / 100.f, .10f, .22f);
+	}
+	if (Use(GMask, TEXT("SM_Careta"), nullptr, White))
+	{
+		const TArray<FName> Slots = GMask->GetMaterialSlotNames();
+		for (int32 i = 0; i < Slots.Num(); i++)
+			if (Slots[i].ToString().Contains(TEXT("Reja"))) GMask->SetMaterial(i, PP::ColorMID(this, FLinearColor(.03f, .03f, .035f), .35f));
+	}
+	ApplyVisual();
 }
 
 void APPGoalkeeper::PickStyle()
@@ -359,4 +423,93 @@ void APPGoalkeeper::ApplyVisual()
 	Place(Glove, GloveLocal, FPPVec(.26f, .26f, .12f));
 	Place(Blocker, BlockerLocal, FPPVec(.24f, .3f, .08f));
 	Place(Stick, FPPVec(BlockerLocal.X, .01f, BlockerLocal.Z + .28f), FPPVec(.06f, .02f, .62f));
+	if (bRig) ApplyRig();
+}
+
+void APPGoalkeeper::ApplyRig()
+{
+	// Pose del arquero a partir del estado del juego. Espacio del torso del rig: x = derecha del arquero (-x de juego),
+	// y arriba, z hacia atrás (-z de juego: el arquero mira hacia +z, al tirador).
+	auto Tg = [](const FPPVec& G) { return FPPVec(-G.X, G.Y, -G.Z); };
+	const float K = PP::Smooth(FMath::Clamp(Kneel, 0.f, 1.f));
+	const float Tm = GetWorld() ? float(GetWorld()->GetTimeSeconds()) : 0.f;
+	FPPRigTargets T;
+	float HipH = FMath::Lerp(.76f, .50f, K) + .006f * FMath::Sin(Tm * 2.1f) * (1.f - K);   // guardia baja, respira
+	const float Shuffle = FMath::Clamp(FMath::Abs(Vel.X) / 1.5f, 0.f, 1.f) * (1.f - K);
+	float SplitMax = 0.f, SplitSide = 0.f;
+	FPPVec Ank[2];
+	for (int s = 0; s < 2; s++)
+	{
+		const float Side = s == 0 ? -1.f : 1.f;                         // s = 0: izquierda del arquero (+x de juego)
+		const float E = s == 0 ? PadExt[1] : -PadExt[0];                // cuánto se abre esta pierna hacia su lado
+		const float Sp = FMath::Clamp(E / .2f, 0.f, 1.f);
+		if (Sp > SplitMax) { SplitMax = Sp; SplitSide = Side; }
+		// de pie: tobillos abiertos en V · mariposa: rodillas al piso al centro y canillas acostadas hacia afuera · split: pierna estirada
+		FPPVec AStand(Side * .26f, SeatY, -.02f);
+		AStand.Y += .035f * Shuffle * FMath::Max(0.f, FMath::Sin(Tm * 13.f + s * PI));   // pasitos al desplazarse de costado
+		const FPPVec ABut(Side * .40f, .075f, .10f), ASplit(Side * .95f, .075f, -.05f);
+		Ank[s] = FMath::Lerp(FMath::Lerp(AStand, ABut, K), ASplit, Sp);
+		const FPPVec PStand(-Side * .35f, -.1f, -1.f), PBut(-Side * .45f, -.9f, -.6f), PSplit(0.f, .3f, -1.f);
+		T.KneePole[s] = FMath::Lerp(FMath::Lerp(PStand, PBut, K), PSplit, Sp);
+		const FPPVec TStand(Side * .35f, 0.f, -1.f), TBut(Side * 1.f, 0.f, .35f), TSplit(Side * .2f, 0.f, -1.f);
+		T.ToeDir[s] = FMath::Lerp(FMath::Lerp(TStand, TBut, K), TSplit, Sp).GetSafeNormal();
+	}
+	HipH -= .14f * SplitMax;
+	T.HipHeight = HipH; T.HipX = -SplitSide * .12f * SplitMax; T.HipZ = FMath::Lerp(.16f, .02f, K);
+	T.Lean = FMath::Lerp(.55f, .22f, K); T.Twist = 0.f;
+	T.AnkleL = Ank[0]; T.AnkleR = Ank[1];
+	// guante (mano izquierda): abierto, mirando al tirador
+	const FPPVec G = Tg(GloveLocal);
+	T.HandL = G; T.HandMode[0] = 1; T.PalmDir[0] = FPPVec(0.f, 0.f, -1.f); T.FingerDir[0] = FPPVec(G.X * .8f, 1.f, 0.f).GetSafeNormal();
+	// blocker (mano derecha): agarra el palo con la pala apoyada adelante
+	const FPPVec Bg = Tg(BlockerLocal);
+	const FPPVec Bv = FMath::Lerp(FPPVec(Bg.X, FMath::Max(Bg.Y, .48f), Bg.Z * .75f), Bg, PokeAlpha);
+	const FPPVec TipL(BlockerLocal.X - .02f, .01f, BlockerLocal.Z + .55f + PokeAlpha * .35f);
+	const FPPVec Tip = Tg(TipL);
+	T.HandR = Bv; T.HandMode[1] = 0; T.StickDir = (Tip - Bv).GetSafeNormal();
+	Rig.Pose(T);
+
+	// ---- equipo, ubicado con los huesos ----
+	const FTransform CT = BodyMesh->GetComponentTransform();
+	auto Wp = [&](const FVector& P) { return CT.TransformPosition(P); };
+	auto Wd = [&](const FVector& D) { return CT.TransformVectorNoScale(D).GetSafeNormal(); };
+	auto Orth = [](const FVector& Z, const FVector& Y) { const FVector R = (Z - Y * FVector::DotProduct(Z, Y)).GetSafeNormal(); return R.IsNearlyZero() ? FVector::CrossProduct(Y, FVector::RightVector).GetSafeNormal() : R; };
+	const FVector FwdW = Wd(Rig.ModelFwd());
+	for (int s = 0; s < 2; s++)
+	{
+		FVector Ap, Af, Au, Kp, Kf, Ku, Tp, Tf, Tu;
+		Rig.BoneFrame(Rig.BoneFoot(s), Ap, Af, Au); Rig.BoneFrame(Rig.BoneKnee(s), Kp, Kf, Ku); Rig.BoneFrame(Rig.BoneToe(s), Tp, Tf, Tu);
+		const FVector A = Wp(Ap), Kn = Wp(Kp), To = Wp(Tp);
+		// polaina: de abajo del tobillo a arriba de la rodilla, con la cara hacia adelante del arquero
+		if (GPads.IsValidIndex(s) && GPads[s] && GPads[s]->IsVisible())
+		{
+			const FVector Y = (Kn - A).GetSafeNormal(); const double Len = (Kn - A).Size();
+			const FVector Z = Orth(FwdW, Y);
+			GPads[s]->SetWorldTransform(Ax.Make(A - Y * 10.0 + Z * 3.5, Y, Z, FVector(1.0, (Len + 23.0) / 100.0, 1.0)));
+		}
+		// patín: apoyado según el pie (en la mariposa queda de costado)
+		if (GSkates.IsValidIndex(s) && GSkates[s] && GSkates[s]->IsVisible())
+		{
+			const FVector Y = Wd(Au); const FVector Z = Orth(To - A, Y);
+			GSkates[s]->SetWorldTransform(Ax.Make(A - Y * (SeatY * 100.0) - Z * 7.5, Y, Z));
+		}
+	}
+	FVector Pp, F, N, Ac;
+	if (GGlove && GGlove->IsVisible()) { Rig.HandFrame(0, Pp, F, N, Ac); const FVector Y = Wd(F), Z = Orth(Wd(N), Y); GGlove->SetWorldTransform(Ax.Make(Wp(Pp) + Z * 2.0, Y, Z)); }
+	FVector BlockPalm = FVector::ZeroVector;
+	if (GBlocker) { Rig.HandFrame(1, Pp, F, N, Ac); BlockPalm = Wp(Pp); if (GBlocker->IsVisible()) { const FVector Y = Wd(F), Z = Orth(Wd(N), Y); GBlocker->SetWorldTransform(Ax.Make(BlockPalm, Y, Z)); } }
+	if (GMask && GMask->IsVisible())
+	{
+		FVector Hp, Hf, Hu; Rig.BoneFrame(Rig.BoneHead(), Hp, Hf, Hu);
+		const FVector Y = Wd(Hu), Z = Orth(Wd(Hf), Y);
+		GMask->SetWorldTransform(Ax.Make(Wp(Hp) + Y * 4.5 + Z * 3.5, Y, Z, FVector(1.12)));
+	}
+	if (GStick && GStick->IsVisible() && GBlocker)
+	{
+		// la pala apoyada en la punta; la caña pasa por la mano del blocker
+		const FVector TipW = GetActorTransform().TransformPosition(FVector(-TipL.Z * 100.0, TipL.X * 100.0, TipL.Y * 100.0));
+		const FVector D = (TipW - BlockPalm).GetSafeNormal();
+		const FVector Toe = FVector(D.X, D.Y, 0.0).GetSafeNormal();
+		GStick->SetWorldTransform(Ax.Make(TipW - D * 121.0, -D, Toe.IsNearlyZero() ? FwdW : Toe));
+	}
 }

@@ -156,7 +156,7 @@ except Exception as e:
 # 3c) jugador: Matías (malla con esqueleto + texturas vestidas) ----------------------
 try:
     mdir = os.path.join(SRC, "Textures", "Matias")
-    pngs = sorted(os.path.join(mdir, f) for f in os.listdir(mdir) if f.startswith("T_Matias_") and f.endswith(".png"))
+    pngs = sorted(os.path.join(mdir, f) for f in os.listdir(mdir) if (f.startswith("T_Matias_") or f.startswith("T_Arquero_")) and f.endswith(".png"))
     import_files(pngs, "/Game/Textures/Matias")
     for p_ in pngs:
         t_ = eal.load_asset("/Game/Textures/Matias/" + os.path.basename(p_)[:-4])
@@ -189,6 +189,19 @@ try:
                 eal.rename_asset(str(a_.package_name), "/Game/Models/SM_PatinReal")
                 break
     log("Patín importado: %s" % eal.does_asset_exist("/Game/Models/SM_PatinReal"))
+    # equipo del arquero (Tools/make_goalie_gear.py)
+    for name_, key_ in (("SM_Polaina", "polaina"), ("SM_Guante", "guante"), ("SM_Blocker", "blocker"), ("SM_Careta", "careta")):
+        f_ = os.path.join(SRC, "Models", name_ + ".glb")
+        if not os.path.exists(f_):
+            log("Falta %s (corré Tools/make_goalie_gear.py)" % f_); continue
+        import_files([f_], "/Game/Models")
+        if not eal.does_asset_exist("/Game/Models/" + name_):
+            reg = unreal.AssetRegistryHelpers.get_asset_registry()
+            for a_ in reg.get_assets_by_path("/Game/Models", recursive=True):
+                if str(a_.asset_class_path.asset_name) == "StaticMesh" and key_ in str(a_.asset_name).lower():
+                    eal.rename_asset(str(a_.package_name), "/Game/Models/" + name_)
+                    break
+        log("%s importado: %s" % (name_, eal.does_asset_exist("/Game/Models/" + name_)))
 except Exception as e:
     log("Matías: %s" % e)
 

@@ -5,6 +5,7 @@
 #include "PPAssets.h"
 #include "DrawDebugHelpers.h"
 #include "PPPoseMesh.h"
+#include "PPHuman.h"
 #include "Engine/SkeletalMesh.h"
 #include "Engine/Texture2D.h"
 #include "Camera/CameraComponent.h"
@@ -542,58 +543,13 @@ void APPShooter::BeginPlay()
 		}
 	}
 	// ---- Matías (SK_Matias) posado por código ----
-	// El importador puede separar a Matías en varias mallas (cuerpo, pelo, ojos...) que comparten esqueleto: la más grande es el cuerpo y el resto la sigue.
-	TArray<USkeletalMesh*> Parts = PP::FindAssets<USkeletalMesh>(TEXT("/Game/Models"));
-	Parts.RemoveAll([](USkeletalMesh* M) { return !M || M->GetName().Contains(TEXT("Jugador")); });
-	USkeletalMesh* SK = nullptr;
-	for (USkeletalMesh* M : Parts) if (!SK || M->GetBounds().BoxExtent.Z > SK->GetBounds().BoxExtent.Z) SK = M;
-	if (!SK) PP::ScreenWarn(TEXT("No encontré a Matías (SK_Matias) en Content/Models. Corré Tools/setup_level.py o importá SourceAssets/Models/SK_Matias.glb."));
-	if (SK)
+	if (PP::SetupHuman(this, BodyMesh, ExtraParts, Rig, TEXT("T_Matias_BaseColor"), TEXT("Jugador")))
 	{
-		auto Tex = [](const TCHAR* N) -> UTexture* { return PP::FindAsset<UTexture2D>(TEXT("/Game/Textures"), N); };
-		auto Dress = [&](UPoseableMeshComponent* C, USkeletalMesh* Asset)
-		{
-			C->SetSkinnedAssetAndUpdate(Asset, true);
-			const TArray<FName> Slots = C->GetMaterialSlotNames();
-			for (int32 i = 0; i < Slots.Num(); i++)
-			{
-				const FString N = (Slots[i].ToString() + TEXT(" ") + Asset->GetName()).ToLower();
-				UMaterialInterface* M = nullptr;
-				if (N.Contains(TEXT("eyebrow"))) M = PP::CutoutMID(this, Tex(TEXT("T_Matias_Brow")), FLinearColor(.1f, .08f, .07f));
-				else if (N.Contains(TEXT("eyelash"))) M = PP::CutoutMID(this, Tex(TEXT("T_Matias_Lash")), FLinearColor(.05f, .05f, .05f));
-				else if (N.Contains(TEXT("short"))) M = PP::CutoutMID(this, Tex(TEXT("T_Matias_Hair")), FLinearColor::White, .45f);
-				else if (N.Contains(TEXT("high-poly")) || N.Contains(TEXT("high_poly")) || N.Contains(TEXT("highpoly"))) M = PP::ColorMID(this, FLinearColor::White, .08f, FLinearColor::Black, Tex(TEXT("T_Matias_Eye")), 1.f, 1.f);
-				else if (N.Contains(TEXT("teeth"))) M = PP::ColorMID(this, FLinearColor::White, .35f, FLinearColor::Black, Tex(TEXT("T_Matias_Teeth")));
-				else if (N.Contains(TEXT("tongue"))) M = PP::ColorMID(this, FLinearColor::White, .5f, FLinearColor::Black, Tex(TEXT("T_Matias_Tongue")));
-				else M = PP::ColorMID(this, FLinearColor::White, .55f, FLinearColor::Black, Tex(TEXT("T_Matias_BaseColor")));   // cuerpo ("body" / "base")
-				if (M) C->SetMaterial(i, M);
-			}
-		};
-		Dress(BodyMesh, SK);
-		PP::ScreenWarn(FString::Printf(TEXT("Matías: %d malla(s) importada(s); cuerpo = %s"), Parts.Num(), *SK->GetName()));
-		for (USkeletalMesh* M : Parts)
-		{
-			if (M == SK) continue;
-			UPoseableMeshComponent* X = NewObject<UPoseableMeshComponent>(this);
-			X->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-			X->RegisterComponent();
-			X->AttachToComponent(BodyMesh, FAttachmentTransformRules::KeepRelativeTransform);
-			Dress(X, M);
-			X->SetLeaderPoseComponent(BodyMesh);
-			X->SetBoundsScale(4.f);
-			ExtraParts.Add(X);
-		}
-		if (Rig.Init(BodyMesh))
-		{
-			bRig = true;
-			PP::ScreenWarn(FString::Printf(TEXT("Matías: esqueleto OK (%d huesos), escala del componente %.3f, pelvis en reposo %.2f m"), SK->GetRefSkeleton().GetNum(), Rig.CompScale, Rig.PelvisRestH));
-			BodyMesh->SetBoundsScale(4.f);
-			BodyMesh->SetRelativeRotation(Rig.CompRot.Rotator());
-			BodyMesh->SetRelativeLocation(Rig.CompLoc);
-			BodyMesh->SetRelativeScale3D(FVector(Rig.CompScale));
-			for (auto* C : {TorsoC.Get(), HeadC.Get(), ArmC[0].Get(), ArmC[1].Get(), LegC[0].Get(), LegC[1].Get()}) if (C) C->SetVisibility(false);
-		}
-		else BodyMesh->SetVisibility(false);
+		bRig = true;
+		BodyMesh->SetRelativeRotation(Rig.CompRot.Rotator());
+		BodyMesh->SetRelativeLocation(Rig.CompLoc);
+		BodyMesh->SetRelativeScale3D(FVector(Rig.CompScale));
+		for (auto* C : {TorsoC.Get(), HeadC.Get(), ArmC[0].Get(), ArmC[1].Get(), LegC[0].Get(), LegC[1].Get()}) if (C) C->SetVisibility(false);
 	}
 }
 

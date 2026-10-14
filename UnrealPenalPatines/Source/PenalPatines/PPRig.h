@@ -16,6 +16,13 @@ struct FPPRigTargets
 	FPPVec StickDir = FPPVec(0.f, -1.f, 0.f);                          // dirección del palo; la mano cierra el puño alrededor de él
 	FPPVec AnkleL = FPPVec::ZeroVector, AnkleR = FPPVec::ZeroVector;
 	float FootPitchL = 0.f, FootPitchR = 0.f;   // punta hacia abajo (rad)
+	// ---- opcionales (arquero) ----
+	float HipZ = 0.f;                           // pelvis hacia atrás (+) o adelante (-)
+	FPPVec KneePole[2] = { FPPVec::ZeroVector, FPPVec::ZeroVector };    // hacia dónde apunta cada rodilla (cero = adelante)
+	FPPVec ToeDir[2] = { FPPVec::ZeroVector, FPPVec::ZeroVector };      // hacia dónde apunta cada pie (cero = adelante)
+	int32 HandMode[2] = { 0, 0 };               // 0 = agarra el palo, 1 = mano abierta (guante)
+	FPPVec PalmDir[2] = { FPPVec::ZeroVector, FPPVec::ZeroVector };     // mano abierta: hacia dónde mira la palma
+	FPPVec FingerDir[2] = { FPPVec::ZeroVector, FPPVec::ZeroVector };   // mano abierta: hacia dónde apuntan los dedos
 };
 
 /**
@@ -40,6 +47,15 @@ public:
 	int32 BoneFoot(int32 Side) const { return Ft[Side]; }
 	int32 BoneRoot() const { return Root; }
 	void Pose(const FPPRigTargets& T);
+	int32 BoneKnee(int32 Side) const { return LL[Side]; }
+	int32 BoneToe(int32 Side) const { return Toe[Side]; }
+	FVector ModelFwd() const { return Fwd; }
+	FVector ModelUp() const { return Up; }
+	float ModelScale() const { return S; }            // unidades del modelo por cm
+	/** Posición y ejes (adelante/arriba del modelo, girados con el hueso) de un hueso, en espacio del componente. */
+	void BoneFrame(int32 B, FVector& OutPos, FVector& OutFwd, FVector& OutUp) const;
+	/** Centro de la palma y ejes de la mano (dedos, palma, nudillos), en espacio del componente. */
+	void HandFrame(int32 Side, FVector& OutPalm, FVector& OutF, FVector& OutN, FVector& OutA) const;
 
 private:
 	UPPPoseMesh* Mesh = nullptr;
@@ -57,6 +73,9 @@ private:
 	int32 Find(const TCHAR* Name) const;
 	void FK();
 	void Grip(int32 Side, const FVector& GripPoint, const FVector& StickDirC, const FVector& Pole);
+	void Open(int32 Side, const FVector& PalmPoint, const FVector& PalmC, const FVector& FingerC, const FVector& Pole);
+	FVector DirComp(const FPPVec& G) const { return (Right * G.X + Up * G.Y + Fwd * (-G.Z)).GetSafeNormal(); }
+	TArray<FVector> RestF, RestU;        // adelante/arriba del modelo en el espacio local de cada hueso
 	FVector Pos(int32 B) const { return CS[B].GetLocation(); }
 	void RotateCS(int32 B, const FQuat& Q);
 	void Aim(int32 B, int32 Child, const FVector& TargetChildPos);

@@ -81,6 +81,14 @@ El jugador es el modelo `Matias_175cm.glb` (MakeHuman, esqueleto de 137 huesos, 
 - `PPRig` lo mueve por código (sin AnimBP): pelvis, inclinación y giro del torso, brazos al palo y piernas con IK de dos huesos; detecta solo
   los ejes y la escala del modelo. Si algo falla (falta un hueso), cae al cuerpo de formas básicas y lo avisa en el Output Log.
 
+## Arquero
+
+El arquero usa el mismo cuerpo que Matías con la camiseta del rival (`T_Arquero_BaseColor`, roja) y equipo propio
+generado por `Tools/make_goalie_gear.py`: polainas (`SM_Polaina`), guante (`SM_Guante`), blocker (`SM_Blocker`) y careta
+(`SM_Careta`, del modelo "Hockey Goalie Mask" de matýsek, CC BY 4.0), más patines y palo. Las posturas salen del estado
+del juego y se posan por IK (`APPGoalkeeper::ApplyRig`): guardia baja con las polainas en V, pasitos al moverse de costado,
+mariposa, split, estiradas con guante/blocker y estocada con el palo. `vista_previa_arquero.png` muestra cómo debería verse.
+
 ## Qué falta
 
 1. **Arquero realista.** El arquero sigue siendo de formas básicas (el jugador ya es Matías). `PPShooter` y `PPGoalkeeper` exponen las

@@ -3,10 +3,14 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "PPTypes.h"
+#include "PPRig.h"
+#include "PPHuman.h"
 #include "PPGoalkeeper.generated.h"
 
 class UStaticMeshComponent;
 class USkeletalMeshComponent;
+class UPPPoseMesh;
+class UPoseableMeshComponent;
 class APPBall;
 class APPShooter;
 
@@ -14,9 +18,11 @@ class APPShooter;
  * Arquero de la máquina. Toda la lógica (lectura del tiro, desplazamiento, salida a achicar,
  * estocada con el palo, zambullida) es un port directo de updateGoalie()/goalieBlocks() del juego web.
  *
- * Visualmente arranca con piezas básicas (torso, careta, polainas, guante, blocker) para que el juego
- * sea jugable al instante. Para el look final, asigná un SkeletalMesh en `BodyMesh` y un AnimBP que lea
- * las variables expuestas (Kneel, Play, Lean, PadExt, GloveLocal, BlockerLocal, Poke).
+ * Se ve como un arquero de verdad: el cuerpo de Matías con la camiseta del rival (T_Arquero_BaseColor), careta,
+ * polainas, guante, blocker, patines y palo. Las animaciones salen del mismo estado del juego, posadas por IK:
+ * guardia baja con las polainas en V, desplazamiento lateral con pasitos, mariposa (rodillas al piso y polainas
+ * abiertas), split (una pierna estirada al costado), estiradas con el guante o el blocker y estocada con el palo.
+ * Si faltan los modelos, quedan las piezas básicas.
  */
 UCLASS()
 class PENALPATINES_API APPGoalkeeper : public AActor
@@ -50,7 +56,8 @@ public:
 	EPPGKStyle Style = EPPGKStyle::Atrevido;
 	FPPDiff Diff;
 
-	UPROPERTY(EditAnywhere, Category = "Visual") TObjectPtr<USkeletalMeshComponent> BodyMesh;
+	UPROPERTY(VisibleAnywhere, Category = "Visual") TObjectPtr<UPPPoseMesh> BodyMesh;
+	UPROPERTY() TArray<TObjectPtr<UPoseableMeshComponent>> ExtraParts;
 
 	// ---- arquero manejado por una persona ----
 	bool bUser = false;
@@ -87,6 +94,18 @@ private:
 	UPROPERTY() TObjectPtr<UStaticMeshComponent> Glove;
 	UPROPERTY() TObjectPtr<UStaticMeshComponent> Blocker;
 	UPROPERTY() TObjectPtr<UStaticMeshComponent> Stick;
+	// equipo de verdad (se ubica con los huesos del cuerpo)
+	UPROPERTY() TArray<TObjectPtr<UStaticMeshComponent>> GPads;
+	UPROPERTY() TArray<TObjectPtr<UStaticMeshComponent>> GSkates;
+	UPROPERTY() TObjectPtr<UStaticMeshComponent> GMask;
+	UPROPERTY() TObjectPtr<UStaticMeshComponent> GGlove;
+	UPROPERTY() TObjectPtr<UStaticMeshComponent> GBlocker;
+	UPROPERTY() TObjectPtr<UStaticMeshComponent> GStick;
+	FPPRig Rig;
+	bool bRig = false;
+	PP::FGltfAxes Ax;
+	float SeatY = .168f;
+	void ApplyRig();
 
 	struct FPose { float Up[5]; float Pads[2][6]; float Knee[2][3]; float Hip[2][3]; FPPVec Glove; FPPVec Block; };
 	static FPose PoseAt(float Kneel, float Play);

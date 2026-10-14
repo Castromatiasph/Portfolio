@@ -133,6 +133,9 @@ bool FPPRig::Init(UPPPoseMesh* M)
 		}
 	GripAlong = 6.5f * S; GripOut = 2.2f * S;      // desde la muñeca: 6,5 cm hacia los dedos y 2,2 cm hacia la palma (unidades del modelo en cm)
 
+	RestF.SetNum(N); RestU.SetNum(N);
+	for (int32 b = 0; b < N; b++) { const FQuat Inv = CS[b].GetRotation().Inverse(); RestF[b] = Inv.RotateVector(Fwd); RestU[b] = Inv.RotateVector(Up); }
+
 	// transformación del componente: ejes del modelo -> ejes del actor (X adelante, Y derecha, Z arriba)
 	const FQuat Basis = FRotationMatrix::MakeFromXZ(Fwd, Up).ToQuat();
 	CompRot = Basis.Inverse();
@@ -149,7 +152,7 @@ void FPPRig::Pose(const FPPRigTargets& T)
 	L = RefLocal; FK();
 	// pelvis
 	{
-		const FVector Hip = Origin + Up * (T.HipHeight * 100.0 * S) + Right * (T.HipX * 100.0 * S);
+		const FVector Hip = Origin + Up * (T.HipHeight * 100.0 * S) + Right * (T.HipX * 100.0 * S) - Fwd * (T.HipZ * 100.0 * S);
 		const FTransform ParentCs = Parent[Root] < 0 ? FTransform::Identity : CS[Parent[Root]];
 		L[Root].SetLocation(ParentCs.InverseTransformPosition(Hip));
 		FK();
@@ -168,7 +171,9 @@ void FPPRig::Pose(const FPPRigTargets& T)
 	for (int s = 0; s < 2; s++)
 	{
 		const double Side = s == 0 ? -1.0 : 1.0;
-		Grip(s, ToComp(Hands[s]), StickC, Right * (Side * .7) - Up * .4 - Fwd * .6);
+		const FVector Pole = Right * (Side * .7) - Up * .4 - Fwd * .6;
+		if (T.HandMode[s] == 1 && !T.PalmDir[s].IsNearlyZero() && !T.FingerDir[s].IsNearlyZero()) Open(s, ToComp(Hands[s]), DirComp(T.PalmDir[s]), DirComp(T.FingerDir[s]), Pole);
+		else Grip(s, ToComp(Hands[s]), StickC, Pole);
 	}
 	// piernas: rodillas hacia adelante; el pie queda horizontal (o con la punta hacia abajo al levantarlo)
 	const FPPVec Ankles[2] = { T.AnkleL, T.AnkleR };
@@ -177,11 +182,13 @@ void FPPRig::Pose(const FPPRigTargets& T)
 	{
 		const double Side = s == 0 ? -1.0 : 1.0;
 		const FVector At = ToComp(Ankles[s]);
-		const FVector K = Solve(Pos(UL[s]), At, LegA[s], LegB[s], Fwd + Right * (Side * .15));
+		const FVector KPole = T.KneePole[s].IsNearlyZero() ? Fwd + Right * (Side * .15) : DirComp(T.KneePole[s]);
+		const FVector K = Solve(Pos(UL[s]), At, LegA[s], LegB[s], KPole);
 		Aim(UL[s], LL[s], K);
 		Aim(LL[s], Ft[s], At);
 		const float Pa = Pitch[s] + FootDrop[s];
-		const FVector ToeDir = (Fwd * FMath::Cos(Pa) - Up * FMath::Sin(Pa)).GetSafeNormal();
+		const FVector Base = T.ToeDir[s].IsNearlyZero() ? Fwd : DirComp(T.ToeDir[s]);
+		const FVector ToeDir = (Base * FMath::Cos(Pa) - Up * FMath::Sin(Pa)).GetSafeNormal();
 		Aim(Ft[s], Toe[s], Pos(Ft[s]) + ToeDir * double(FootLen[s]));
 	}
 	Mesh->SetLocalPose(L);
@@ -227,4 +234,39 @@ void FPPRig::Grip(int32 Side, const FVector& GripPoint, const FVector& StickDirC
 			N = Q.RotateVector(N);
 		}
 	}
+}
+
+void FPPRig::Open(int32 Side, const FVector& PalmPoint, const FVector& PalmC, const FVector& FingerC, const FVector& Pole)
+{
+	if (!bHands) { Aim(UA[Side], LA[Side], Solve(Pos(UA[Side]), PalmPoint, ArmA[Side], ArmB[Side], Pole)); Aim(LA[Side], Wr[Side], PalmPoint); return; }
+	for (int Iter = 0; Iter < 2; Iter++)
+	{
+		FQuat Rw = CS[Wr[Side]].GetRotation();
+		const FVector WristT = PalmPoint - Rw.RotateVector(HandF[Side]) * GripAlong;
+		Aim(UA[Side], LA[Side], Solve(Pos(UA[Side]), WristT, ArmA[Side], ArmB[Side], Pole));
+		Aim(LA[Side], Wr[Side], WristT);
+		// la palma mira hacia PalmC y los dedos apuntan hacia FingerC
+		Rw = CS[Wr[Side]].GetRotation();
+		const FVector Nc = Rw.RotateVector(HandN[Side]), Fc = Rw.RotateVector(HandF[Side]);
+		const FQuat Q1 = FQuat::FindBetweenNormals(Nc, PalmC);
+		const FVector F1 = Q1.RotateVector(Fc);
+		FVector Fp = FingerC - PalmC * FVector::DotProduct(FingerC, PalmC), F1p = F1 - PalmC * FVector::DotProduct(F1, PalmC);
+		FQuat Q = Q1;
+		if (Fp.SizeSquared() > 1e-6 && F1p.SizeSquared() > 1e-6) Q = FQuat::FindBetweenNormals(F1p.GetSafeNormal(), Fp.GetSafeNormal()) * Q1;
+		RotateCS(Wr[Side], Q);
+	}
+}
+
+void FPPRig::BoneFrame(int32 B, FVector& OutPos, FVector& OutFwd, FVector& OutUp) const
+{
+	if (!CS.IsValidIndex(B)) { OutPos = FVector::ZeroVector; OutFwd = Fwd; OutUp = Up; return; }
+	const FQuat Q = CS[B].GetRotation();
+	OutPos = CS[B].GetLocation(); OutFwd = Q.RotateVector(RestF[B]); OutUp = Q.RotateVector(RestU[B]);
+}
+
+void FPPRig::HandFrame(int32 Side, FVector& OutPalm, FVector& OutF, FVector& OutN, FVector& OutA) const
+{
+	const FQuat Q = CS[Wr[Side]].GetRotation();
+	OutF = Q.RotateVector(HandF[Side]); OutN = Q.RotateVector(HandN[Side]); OutA = Q.RotateVector(HandA[Side]);
+	OutPalm = CS[Wr[Side]].GetLocation() + OutF * GripAlong;
 }
