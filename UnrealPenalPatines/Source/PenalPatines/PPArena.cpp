@@ -241,13 +241,13 @@ void APPArena::ApplyQuality(EPPQuality Q)
 	switch (Q)
 	{
 	case EPPQuality::Baja:
-		Cmd(TEXT("r.ScreenPercentage 60")); Cmd(TEXT("r.AntiAliasingMethod 1"));
+		Cmd(TEXT("r.ScreenPercentage 60")); Cmd(TEXT("r.AntiAliasingMethod 1")); Cmd(TEXT("r.Shadow.Virtual.Enable 0"));
 		Cmd(TEXT("r.Shadow.Virtual.SMRT.RayCountLocal 1")); Cmd(TEXT("r.Shadow.Virtual.SMRT.SamplesPerRayLocal 2")); break;
 	case EPPQuality::Media:
-		Cmd(TEXT("r.ScreenPercentage 80")); Cmd(TEXT("r.AntiAliasingMethod 4"));
+		Cmd(TEXT("r.ScreenPercentage 80")); Cmd(TEXT("r.AntiAliasingMethod 4")); Cmd(TEXT("r.Shadow.Virtual.Enable 0"));
 		Cmd(TEXT("r.Shadow.Virtual.SMRT.RayCountLocal 2")); Cmd(TEXT("r.Shadow.Virtual.SMRT.SamplesPerRayLocal 4")); break;
 	default:
-		Cmd(TEXT("r.ScreenPercentage 100")); Cmd(TEXT("r.AntiAliasingMethod 4"));
+		Cmd(TEXT("r.ScreenPercentage 100")); Cmd(TEXT("r.AntiAliasingMethod 4")); Cmd(TEXT("r.Shadow.Virtual.Enable 1"));
 		Cmd(TEXT("r.Shadow.Virtual.SMRT.RayCountLocal 4")); Cmd(TEXT("r.Shadow.Virtual.SMRT.SamplesPerRayLocal 4")); break;
 	}
 	for (int32 i = 0; i < Lights.Num(); i++)
